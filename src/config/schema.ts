@@ -14,7 +14,7 @@ export const configSchema = z.object({
 
   logging: z.object({
     /** Guild IDs to monitor (empty = discovery mode, no logging) */
-    guilds: z.array(z.string()).default([]),
+    guilds: z.array(z.coerce.string()).default([]),
 
     /** Opt-in to DM logging (default false for privacy) */
     logDirectMessages: z.boolean().default(false),
@@ -59,8 +59,11 @@ export const configSchema = z.object({
   dashboard: z.object({
     host: z.string().default('127.0.0.1'),
     port: z.number().int().positive().default(3333),
-    /** Auth token — auto-generated if omitted */
-    authToken: z.string().min(1).default(() => crypto.randomBytes(32).toString('hex')),
+    /** Auth token — auto-generated if omitted or null */
+    authToken: z.preprocess(
+      (val) => (val === null ? undefined : val),
+      z.string().min(1).default(() => crypto.randomBytes(32).toString('hex'))
+    ),
   }).default({}),
 
   /** Database settings */
