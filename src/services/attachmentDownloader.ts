@@ -24,10 +24,12 @@ function request(
     const req = client.request(url, options, (res) => {
       if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         if (maxRedirects <= 0) {
+          res.resume();
           reject(new Error('Too many redirects'));
           return;
         }
         const redirectUrl = new URL(res.headers.location, url).toString();
+        res.resume();
         resolve(request(redirectUrl, options, maxRedirects - 1));
         return;
       }
@@ -50,6 +52,10 @@ async function httpHead(
   options: { timeout?: number; maxRedirects?: number; headers?: http.OutgoingHttpHeaders } = {}
 ): Promise<{ headers: http.IncomingHttpHeaders }> {
   const { response } = await request(url, { method: 'HEAD', headers: options.headers, timeout: options.timeout }, options.maxRedirects ?? 5);
+  if (!response.statusCode || response.statusCode < 200 || response.statusCode >= 300) {
+    response.resume();
+    throw new Error(`HEAD request failed with status ${response.statusCode ?? 'unknown'}`);
+  }
   return { headers: response.headers };
 }
 
@@ -58,6 +64,10 @@ async function httpGetStream(
   options: { timeout?: number; maxRedirects?: number; headers?: http.OutgoingHttpHeaders } = {}
 ): Promise<{ data: Readable }> {
   const { response } = await request(url, { method: 'GET', headers: options.headers, timeout: options.timeout }, options.maxRedirects ?? 5);
+  if (!response.statusCode || response.statusCode < 200 || response.statusCode >= 300) {
+    response.resume();
+    throw new Error(`GET request failed with status ${response.statusCode ?? 'unknown'}`);
+  }
   return { data: response as Readable };
 }
 

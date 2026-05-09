@@ -20,7 +20,11 @@ class FetchClient {
   }
 
   private async request<T = unknown>(url: string, config: RequestConfig = {}): Promise<ApiResponse<T>> {
-    const fullURL = new URL(url, this.baseURL);
+    const absoluteBaseURL = new URL(this.baseURL, window.location.origin);
+    const normalizedBaseURL = absoluteBaseURL.toString().endsWith('/') ? absoluteBaseURL.toString() : `${absoluteBaseURL.toString()}/`;
+    const fullURL = /^https?:\/\//i.test(url)
+      ? new URL(url)
+      : new URL(url.replace(/^\/+/, ''), normalizedBaseURL);
     if (config.params) {
       Object.entries(config.params).forEach(([key, value]) => {
         fullURL.searchParams.set(key, value);
