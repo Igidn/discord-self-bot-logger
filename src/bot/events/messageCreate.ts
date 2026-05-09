@@ -33,6 +33,68 @@ async function onMessageCreate(client: Client, _db: any, message: Message) {
       logger.error({ err }, 'Failed to upsert user in messageCreate');
     }
 
+    // Upsert guild cache (required for messages FK)
+    if (message.guildId) {
+      try {
+        if (message.guild) {
+          const iconUrl = message.guild.iconURL({ size: 128 }) ?? null;
+          const joinedAt = message.guild.joinedAt ? Math.floor(message.guild.joinedAt.getTime() / 1000) : null;
+          sqlite.prepare(`
+            INSERT INTO guilds (id, name, icon_url, owner_id, joined_at, configured_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+              name = excluded.name,
+              icon_url = excluded.icon_url,
+              owner_id = excluded.owner_id,
+              joined_at = excluded.joined_at
+          `).run(
+            message.guild.id,
+            message.guild.name,
+            iconUrl,
+            message.guild.ownerId,
+            joinedAt,
+            Math.floor(Date.now() / 1000)
+          );
+        } else {
+          // Guild not cached: insert placeholder to satisfy FK
+          sqlite.prepare(`
+            INSERT INTO guilds (id, name, icon_url, owner_id, joined_at, configured_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO NOTHING
+          `).run(message.guildId, 'Unknown Guild', null, null, null, Math.floor(Date.now() / 1000));
+        }
+      } catch (err) {
+        logger.error({ err }, 'Failed to upsert guild in messageCreate');
+      }
+    }
+
+    // Upsert channel cache
+    if (message.channel && message.guildId) {
+      try {
+        const ch = message.channel as any;
+        sqlite.prepare(`
+          INSERT INTO channels (id, guild_id, name, type, topic, nsfw, parent_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            name = excluded.name,
+            type = excluded.type,
+            topic = excluded.topic,
+            nsfw = excluded.nsfw,
+            parent_id = excluded.parent_id
+        `).run(
+          ch.id,
+          message.guildId,
+          ch.name ?? null,
+          ch.type ?? null,
+          ch.topic ?? null,
+          ch.nsfw ? 1 : 0,
+          ch.parentId ?? null
+        );
+      } catch (err) {
+        logger.error({ err }, 'Failed to upsert channel in messageCreate');
+      }
+    }
+
     // Build sticker markdown hyperlinks
     const stickerLinks: string[] = [];
     if (message.stickers && message.stickers.size > 0) {
