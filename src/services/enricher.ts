@@ -1,5 +1,4 @@
-import { db } from '@/database/index.js';
-import { sql } from 'drizzle-orm';
+import { sqlite } from '@/database/index.js';
 import { logger } from '@/utils/logger.js';
 
 export interface DiscordUser {
@@ -64,7 +63,44 @@ class SimpleLRU<T> {
 
 const userCache = new SimpleLRU<boolean>(1000);
 const channelCache = new SimpleLRU<boolean>(1000);
-const guildCache = new SimpleLRU<boolean>(1000);
+const guildCache = new SimpleLRU<'placeholder' | 'full'>(1000);
+
+const upsertUserStmt = sqlite.prepare(`
+  INSERT INTO users (id, username, discriminator, avatar_url, bot, first_seen_at)
+  VALUES (?, ?, ?, ?, ?, ?)
+  ON CONFLICT(id) DO UPDATE SET
+    username = excluded.username,
+    discriminator = excluded.discriminator,
+    avatar_url = excluded.avatar_url,
+    bot = excluded.bot
+`);
+
+const upsertChannelStmt = sqlite.prepare(`
+  INSERT INTO channels (id, guild_id, name, type, topic, nsfw, parent_id)
+  VALUES (?, ?, ?, ?, ?, ?, ?)
+  ON CONFLICT(id) DO UPDATE SET
+    name = excluded.name,
+    type = excluded.type,
+    topic = excluded.topic,
+    nsfw = excluded.nsfw,
+    parent_id = excluded.parent_id
+`);
+
+const upsertGuildStmt = sqlite.prepare(`
+  INSERT INTO guilds (id, name, icon_url, owner_id, joined_at, configured_at)
+  VALUES (?, ?, ?, ?, ?, ?)
+  ON CONFLICT(id) DO UPDATE SET
+    name = excluded.name,
+    icon_url = excluded.icon_url,
+    owner_id = excluded.owner_id,
+    joined_at = excluded.joined_at
+`);
+
+const ensureGuildStmt = sqlite.prepare(`
+  INSERT INTO guilds (id, name, icon_url, owner_id, joined_at, configured_at)
+  VALUES (?, ?, ?, ?, ?, ?)
+  ON CONFLICT(id) DO NOTHING
+`);
 
 export function enrichUser(user: DiscordUser): void {
   if (userCache.get(user.id)) return;
@@ -72,22 +108,14 @@ export function enrichUser(user: DiscordUser): void {
   const avatarUrl = typeof user.avatarURL === 'function' ? user.avatarURL({ size: 128 }) : null;
 
   try {
-    db.run(sql`
-      INSERT INTO users (id, username, discriminator, avatar_url, bot, first_seen_at)
-      VALUES (
-        ${user.id},
-        ${user.username},
-        ${user.discriminator ?? '0'},
-        ${avatarUrl},
-        ${user.bot ? 1 : 0},
-        ${Math.floor(Date.now() / 1000)}
-      )
-      ON CONFLICT(id) DO UPDATE SET
-        username = excluded.username,
-        discriminator = excluded.discriminator,
-        avatar_url = excluded.avatar_url,
-        bot = excluded.bot
-    `);
+    upsertUserStmt.run(
+      user.id,
+      user.username,
+      user.discriminator ?? '0',
+      avatarUrl,
+      user.bot ? 1 : 0,
+      Math.floor(Date.now() / 1000)
+    );
     userCache.set(user.id, true);
   } catch (err) {
     logger.error({ userId: user.id, err }, 'Failed to enrich user');
@@ -98,24 +126,15 @@ export function enrichChannel(channel: DiscordChannel): void {
   if (channelCache.get(channel.id)) return;
 
   try {
-    db.run(sql`
-      INSERT INTO channels (id, guild_id, name, type, topic, nsfw, parent_id)
-      VALUES (
-        ${channel.id},
-        ${channel.guildId ?? null},
-        ${channel.name ?? null},
-        ${channel.type},
-        ${channel.topic ?? null},
-        ${channel.nsfw ? 1 : 0},
-        ${channel.parentId ?? null}
-      )
-      ON CONFLICT(id) DO UPDATE SET
-        name = excluded.name,
-        type = excluded.type,
-        topic = excluded.topic,
-        nsfw = excluded.nsfw,
-        parent_id = excluded.parent_id
-    `);
+    upsertChannelStmt.run(
+      channel.id,
+      channel.guildId ?? null,
+      channel.name ?? null,
+      channel.type,
+      channel.topic ?? null,
+      channel.nsfw ? 1 : 0,
+      channel.parentId ?? null
+    );
     channelCache.set(channel.id, true);
   } catch (err) {
     logger.error({ channelId: channel.id, err }, 'Failed to enrich channel');
@@ -123,31 +142,34 @@ export function enrichChannel(channel: DiscordChannel): void {
 }
 
 export function enrichGuild(guild: DiscordGuild): void {
-  if (guildCache.get(guild.id)) return;
+  if (guildCache.get(guild.id) === 'full') return;
 
   const iconUrl = typeof guild.iconURL === 'function' ? guild.iconURL({ size: 128 }) : null;
   const joinedAt = guild.joinedAt ? Math.floor(guild.joinedAt.getTime() / 1000) : null;
 
   try {
-    db.run(sql`
-      INSERT INTO guilds (id, name, icon_url, owner_id, joined_at, configured_at)
-      VALUES (
-        ${guild.id},
-        ${guild.name},
-        ${iconUrl},
-        ${guild.ownerId},
-        ${joinedAt},
-        ${Math.floor(Date.now() / 1000)}
-      )
-      ON CONFLICT(id) DO UPDATE SET
-        name = excluded.name,
-        icon_url = excluded.icon_url,
-        owner_id = excluded.owner_id,
-        joined_at = excluded.joined_at
-    `);
-    guildCache.set(guild.id, true);
+    upsertGuildStmt.run(
+      guild.id,
+      guild.name,
+      iconUrl,
+      guild.ownerId,
+      joinedAt,
+      Math.floor(Date.now() / 1000)
+    );
+    guildCache.set(guild.id, 'full');
   } catch (err) {
     logger.error({ guildId: guild.id, err }, 'Failed to enrich guild');
+  }
+}
+
+export function ensureGuild(guildId: string): void {
+  if (guildCache.get(guildId)) return;
+
+  try {
+    ensureGuildStmt.run(guildId, 'Unknown Guild', null, null, null, Math.floor(Date.now() / 1000));
+    guildCache.set(guildId, 'placeholder');
+  } catch (err) {
+    logger.error({ guildId, err }, 'Failed to ensure guild placeholder');
   }
 }
 
@@ -157,10 +179,10 @@ export function enrichMessage(message: DiscordMessage): {
   guildName: string | null;
 } {
   enrichUser(message.author);
-  enrichChannel(message.channel);
   if (message.guild) {
     enrichGuild(message.guild);
   }
+  enrichChannel(message.channel);
 
   return {
     authorUsername: message.author.username,
