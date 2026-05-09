@@ -1,4 +1,4 @@
-import { Client, Message, PartialMessage } from 'discord.js-selfbot-v13';
+import { Client, Message, PartialMessage, Collection } from 'discord.js-selfbot-v13';
 import { sqlite } from '../../database/index.js';
 import { logger } from '../../utils/logger.js';
 import { requireGuild } from '../guildFilter.js';
@@ -48,7 +48,7 @@ async function onMessageDelete(client: Client, _db: any, message: Message | Part
   }
 }
 
-async function onMessageDeleteBulk(client: Client, _db: any, messages: any) {
+async function onMessageDeleteBulk(client: Client, _db: any, messages: Collection<string, Message>) {
   try {
     const first = messages.first?.() ?? null;
     const guildId = first?.guildId ?? null;

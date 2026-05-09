@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import crypto from 'node:crypto';
 
 /* ------------------------------------------------------------------ */
 /*  Config Schema — matches DESIGN.md Section 5.2                     */
@@ -56,7 +57,7 @@ export const configSchema = z.object({
     host: z.string().default('127.0.0.1'),
     port: z.number().int().positive().default(3333),
     /** Auth token — auto-generated if omitted */
-    authToken: z.string().min(1).default(() => require('crypto').randomBytes(32).toString('hex')),
+    authToken: z.string().min(1).default(() => crypto.randomBytes(32).toString('hex')),
   }).default({}),
 
   /** Database settings */

@@ -5,6 +5,7 @@ import { requireGuild } from '../guildFilter.js';
 import { broadcaster } from '../../dashboard/socket/broadcaster.js';
 
 const presenceThrottle = new Map<string, number>();
+const PRESENCE_THROTTLE_MS = 30_000;
 
 async function onPresenceUpdate(client: Client, _db: any, _oldPresence: Presence | null, newPresence: Presence) {
   try {
@@ -14,10 +15,17 @@ async function onPresenceUpdate(client: Client, _db: any, _oldPresence: Presence
 
     // Throttle: 1 per user per 30s
     const last = presenceThrottle.get(userId) ?? 0;
-    if (now - last < 30_000) {
+    if (now - last < PRESENCE_THROTTLE_MS) {
       return;
     }
     presenceThrottle.set(userId, now);
+
+    // Evict stale entries to prevent unbounded growth
+    for (const [uid, ts] of presenceThrottle) {
+      if (now - ts > PRESENCE_THROTTLE_MS * 2) {
+        presenceThrottle.delete(uid);
+      }
+    }
 
     const status = newPresence.status;
     const clientStatus = newPresence.clientStatus ? JSON.stringify(newPresence.clientStatus) : null;

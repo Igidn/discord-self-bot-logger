@@ -8,7 +8,7 @@ let io: SocketIOServer | undefined;
 
 export function initSocketIO(server: HTTPServer): SocketIOServer {
   io = new SocketIOServer(server, {
-    cors: { origin: '*' },
+    cors: { origin: process.env.NODE_ENV === 'production' ? false : '*' },
     transports: ['websocket', 'polling'],
   });
 

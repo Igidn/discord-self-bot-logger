@@ -1,7 +1,7 @@
 import { loadConfig } from '@/config/loader.js';
 import { initDatabase, closeDatabase } from '@/database/index.js';
 import { startDashboardServer } from '@/dashboard/server.js';
-import { initSocketIO } from '@/dashboard/socket/index.js';
+
 import { client, startBot } from '@/bot/client.js';
 import { db } from '@/database/index.js';
 import { startRetentionPurger } from '@/services/retentionPurger.js';
@@ -23,9 +23,8 @@ async function main(): Promise<void> {
   logger.info('[3/7] Starting dashboard server...');
   const server = startDashboardServer(config.dashboard.host, config.dashboard.port) as HttpServer;
 
-  // d. Initialize Socket.IO
-  logger.info('[4/7] Initializing Socket.IO...');
-  initSocketIO(server);
+  // d. Socket.IO is initialized inside startDashboardServer
+  logger.info('[4/7] Socket.IO initialized via dashboard server');
 
   // e. Initialize bot client and register events
   logger.info('[5/7] Initializing bot client...');

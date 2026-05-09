@@ -14,12 +14,12 @@ import { loadConfig } from '@/config/loader.js';
 export interface Attachment {
   id: string;
   url: string;
-  proxyURL?: string;
+  proxyURL?: string | null;
   size: number;
   contentType?: string | null;
   width?: number | null;
   height?: number | null;
-  name?: string;
+  name?: string | null;
 }
 
 interface AttachmentConfig {

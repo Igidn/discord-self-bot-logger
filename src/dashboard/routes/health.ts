@@ -4,12 +4,10 @@ import { logger } from '@/utils/logger.js';
 
 const router = Router();
 
-router.get('/', async (_req, res, next) => {
+router.get('/', (_req, res, next) => {
   try {
-    const [guildsCount, messagesCount] = await Promise.all([
-      getGuildsCount(),
-      getMessagesCount(),
-    ]);
+    const guildsCount = getGuildsCount();
+    const messagesCount = getMessagesCount();
 
     res.json({
       status: 'ok',

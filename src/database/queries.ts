@@ -320,10 +320,10 @@ export function getGuildStats(guildId: string): GuildStats {
 /* ------------------------------------------------------------------ */
 
 export function getOverviewStats(days: number = 30): OverviewStats {
-  const sinceMs = Date.now() - days * 24 * 60 * 60 * 1000;
+  const sinceSec = Math.floor((Date.now() - days * 24 * 60 * 60 * 1000) / 1000);
 
   const totalMessages =
-    db.all<{ count: number }>(sql`SELECT count(*) AS count FROM messages WHERE created_at >= ${sinceMs}`)[0]?.count ?? 0;
+    db.all<{ count: number }>(sql`SELECT count(*) AS count FROM messages WHERE created_at >= ${sinceSec}`)[0]?.count ?? 0;
 
   const totalGuilds =
     db.all<{ count: number }>(sql`SELECT count(*) AS count FROM guilds`)[0]?.count ?? 0;
@@ -332,9 +332,9 @@ export function getOverviewStats(days: number = 30): OverviewStats {
     db.all<{ count: number }>(sql`SELECT count(*) AS count FROM users`)[0]?.count ?? 0;
 
   const dailyCounts = db.all<{ day: string; count: number }>(sql`
-    SELECT date(created_at / 1000, 'unixepoch') AS day, count(*) AS count
+    SELECT date(created_at, 'unixepoch') AS day, count(*) AS count
     FROM messages
-    WHERE created_at >= ${sinceMs}
+    WHERE created_at >= ${sinceSec}
     GROUP BY day
     ORDER BY day DESC
   `);
@@ -342,7 +342,7 @@ export function getOverviewStats(days: number = 30): OverviewStats {
   const topChannels = db.all<{ channelId: string; count: number }>(sql`
     SELECT channel_id AS channelId, count(*) AS count
     FROM messages
-    WHERE created_at >= ${sinceMs}
+    WHERE created_at >= ${sinceSec}
     GROUP BY channel_id
     ORDER BY count DESC
     LIMIT 10
@@ -351,7 +351,7 @@ export function getOverviewStats(days: number = 30): OverviewStats {
   const topUsers = db.all<{ userId: string; count: number }>(sql`
     SELECT author_id AS userId, count(*) AS count
     FROM messages
-    WHERE created_at >= ${sinceMs}
+    WHERE created_at >= ${sinceSec}
     GROUP BY author_id
     ORDER BY count DESC
     LIMIT 10
@@ -471,22 +471,22 @@ export function suggestField(
 /* ------------------------------------------------------------------ */
 
 export function getDailyMessageCounts(days: number = 30): { day: string; count: number }[] {
-  const sinceMs = Date.now() - days * 24 * 60 * 60 * 1000;
+  const sinceSec = Math.floor((Date.now() - days * 24 * 60 * 60 * 1000) / 1000);
   return db.all<{ day: string; count: number }>(sql`
-    SELECT date(created_at / 1000, 'unixepoch') AS day, count(*) AS count
+    SELECT date(created_at, 'unixepoch') AS day, count(*) AS count
     FROM messages
-    WHERE created_at >= ${sinceMs}
+    WHERE created_at >= ${sinceSec}
     GROUP BY day
     ORDER BY day DESC
   `);
 }
 
 export function getTopChannels(days: number = 30): { channelId: string; count: number }[] {
-  const sinceMs = Date.now() - days * 24 * 60 * 60 * 1000;
+  const sinceSec = Math.floor((Date.now() - days * 24 * 60 * 60 * 1000) / 1000);
   return db.all<{ channelId: string; count: number }>(sql`
     SELECT channel_id AS channelId, count(*) AS count
     FROM messages
-    WHERE created_at >= ${sinceMs}
+    WHERE created_at >= ${sinceSec}
     GROUP BY channel_id
     ORDER BY count DESC
     LIMIT 10
@@ -494,11 +494,11 @@ export function getTopChannels(days: number = 30): { channelId: string; count: n
 }
 
 export function getTopUsers(days: number = 30): { userId: string; count: number }[] {
-  const sinceMs = Date.now() - days * 24 * 60 * 60 * 1000;
+  const sinceSec = Math.floor((Date.now() - days * 24 * 60 * 60 * 1000) / 1000);
   return db.all<{ userId: string; count: number }>(sql`
     SELECT author_id AS userId, count(*) AS count
     FROM messages
-    WHERE created_at >= ${sinceMs}
+    WHERE created_at >= ${sinceSec}
     GROUP BY author_id
     ORDER BY count DESC
     LIMIT 10

@@ -94,5 +94,10 @@ export function updateConfigGuilds(guildIds: string[]): void {
   logging.guilds = guildIds;
   parsed.logging = logging;
   fs.writeFileSync(CONFIG_PATH, yaml.dump(parsed, { lineWidth: -1 }));
+  // Update in-memory config so the running process picks up the change immediately
+  (config as unknown as Record<string, unknown>).logging = {
+    ...(config as unknown as Record<string, unknown>).logging as Record<string, unknown>,
+    guilds: guildIds,
+  };
   logger.info({ guildIds }, 'Updated guild whitelist in config.yaml');
 }

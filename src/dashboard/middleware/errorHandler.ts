@@ -7,7 +7,7 @@ export function errorHandler(
   res: Response,
   _next: NextFunction
 ): void {
-  logger.error({ err: err.message, stack: err.stack }, 'Unhandled error');
+  logger.error(err, 'Unhandled error');
 
   const isProduction = process.env.NODE_ENV === 'production';
   const statusCode = (err as { statusCode?: number }).statusCode || 500;

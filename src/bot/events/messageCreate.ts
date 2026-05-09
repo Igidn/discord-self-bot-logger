@@ -3,6 +3,7 @@ import { sqlite } from '../../database/index.js';
 import { logger } from '../../utils/logger.js';
 import { requireGuild } from '../guildFilter.js';
 import { broadcaster } from '../../dashboard/socket/broadcaster.js';
+import { downloadAttachment } from '../../services/attachmentDownloader.js';
 
 async function onMessageCreate(client: Client, _db: any, message: Message) {
   try {
@@ -36,7 +37,13 @@ async function onMessageCreate(client: Client, _db: any, message: Message) {
     const stickerLinks: string[] = [];
     if (message.stickers && message.stickers.size > 0) {
       for (const sticker of message.stickers.values()) {
-        const ext = Number(sticker.format) === 3 ? 'json' : 'png';
+        const format = Number(sticker.format);
+        let ext: string;
+        if (format === 1) ext = 'png';
+        else if (format === 2) ext = 'apng';
+        else if (format === 3) ext = 'json';
+        else if (format === 4) ext = 'gif';
+        else ext = 'png';
         const url = `https://media.discordapp.net/stickers/${sticker.id}.${ext}?size=300`;
         stickerLinks.push(`[${sticker.name}](${url})`);
       }
@@ -70,15 +77,27 @@ async function onMessageCreate(client: Client, _db: any, message: Message) {
       logger.error({ err }, 'Failed to insert message');
     }
 
-    // Handle attachments (images only) — log for now, enqueue download
+    // Handle attachments (images only)
     if (message.attachments && message.attachments.size > 0) {
       for (const attachment of message.attachments.values()) {
         if (attachment.contentType?.startsWith('image/')) {
-          logger.info(
-            { attachmentId: attachment.id, url: attachment.url, messageId: message.id },
-            'Attachment enqueued for download'
-          );
-          // TODO: invoke attachmentDownloader.enqueue(attachment, message.id)
+          downloadAttachment(
+            {
+              id: attachment.id,
+              url: attachment.url,
+              proxyURL: attachment.proxyURL,
+              size: attachment.size,
+              contentType: attachment.contentType,
+              width: attachment.width,
+              height: attachment.height,
+              name: attachment.name,
+            },
+            message.id,
+            guildId ?? 'dm',
+            channelId
+          ).catch((err) => {
+            logger.error({ attachmentId: attachment.id, err }, 'Attachment download failed');
+          });
         }
       }
     }
