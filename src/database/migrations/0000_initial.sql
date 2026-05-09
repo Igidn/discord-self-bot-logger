@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS guilds (
   joined_at     INTEGER,
   configured_at INTEGER DEFAULT (unixepoch())
 );
-
+--> statement-breakpoint
 -- Channels (populated lazily)
 CREATE TABLE IF NOT EXISTS channels (
   id        TEXT PRIMARY KEY,
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS channels (
   nsfw      INTEGER DEFAULT 0,
   parent_id TEXT
 );
-
+--> statement-breakpoint
 -- Users (global cache)
 CREATE TABLE IF NOT EXISTS users (
   id            TEXT PRIMARY KEY,
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS users (
   bot           INTEGER DEFAULT 0,
   first_seen_at INTEGER DEFAULT (unixepoch())
 );
-
+--> statement-breakpoint
 -- Messages
 CREATE TABLE IF NOT EXISTS messages (
   id              TEXT PRIMARY KEY,
@@ -47,12 +47,15 @@ CREATE TABLE IF NOT EXISTS messages (
   components_json TEXT,
   flags           INTEGER DEFAULT 0
 );
-
+--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS idx_messages_guild_time ON messages(guild_id, created_at);
+--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS idx_messages_channel_time ON messages(channel_id, created_at);
+--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS idx_messages_author ON messages(author_id, created_at);
+--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS idx_messages_search ON messages(content);
-
+--> statement-breakpoint
 -- Message Edits (audit trail)
 CREATE TABLE IF NOT EXISTS message_edits (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -61,9 +64,9 @@ CREATE TABLE IF NOT EXISTS message_edits (
   new_content TEXT,
   edited_at   INTEGER NOT NULL
 );
-
+--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS idx_edits_message ON message_edits(message_id);
-
+--> statement-breakpoint
 -- Message Deletes
 CREATE TABLE IF NOT EXISTS message_deletes (
   id               INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,9 +77,9 @@ CREATE TABLE IF NOT EXISTS message_deletes (
   content_snapshot TEXT,
   deleted_at       INTEGER NOT NULL
 );
-
+--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS idx_deletes_guild_time ON message_deletes(guild_id, deleted_at);
-
+--> statement-breakpoint
 -- Reactions
 CREATE TABLE IF NOT EXISTS reactions (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -89,9 +92,9 @@ CREATE TABLE IF NOT EXISTS reactions (
   added      INTEGER DEFAULT 1,
   created_at INTEGER DEFAULT (unixepoch())
 );
-
+--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS idx_reactions_message ON reactions(message_id);
-
+--> statement-breakpoint
 -- Attachments (image/* only — non-image files are skipped)
 CREATE TABLE IF NOT EXISTS attachments (
   id                    TEXT PRIMARY KEY,
@@ -106,9 +109,9 @@ CREATE TABLE IF NOT EXISTS attachments (
   height                INTEGER,
   created_at            INTEGER DEFAULT (unixepoch())
 );
-
+--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS idx_attachments_message ON attachments(message_id);
-
+--> statement-breakpoint
 -- Member events (join/leave/ban/unban/update)
 CREATE TABLE IF NOT EXISTS member_events (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -120,9 +123,9 @@ CREATE TABLE IF NOT EXISTS member_events (
   roles_json TEXT,
   created_at INTEGER DEFAULT (unixepoch())
 );
-
+--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS idx_member_events_guild ON member_events(guild_id, created_at);
-
+--> statement-breakpoint
 -- Presence updates
 CREATE TABLE IF NOT EXISTS presence_updates (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -133,9 +136,9 @@ CREATE TABLE IF NOT EXISTS presence_updates (
   activities_json TEXT,
   updated_at      INTEGER DEFAULT (unixepoch())
 );
-
+--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS idx_presence_user ON presence_updates(user_id, updated_at);
-
+--> statement-breakpoint
 -- Voice state changes
 CREATE TABLE IF NOT EXISTS voice_events (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -147,9 +150,9 @@ CREATE TABLE IF NOT EXISTS voice_events (
   new_value   TEXT,
   created_at  INTEGER DEFAULT (unixepoch())
 );
-
+--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS idx_voice_guild ON voice_events(guild_id, created_at);
-
+--> statement-breakpoint
 -- Guild audit events (role/channel changes, name changes, etc.)
 CREATE TABLE IF NOT EXISTS guild_audit (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -162,25 +165,25 @@ CREATE TABLE IF NOT EXISTS guild_audit (
   reason       TEXT,
   created_at   INTEGER DEFAULT (unixepoch())
 );
-
+--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS idx_audit_guild ON guild_audit(guild_id, created_at);
-
+--> statement-breakpoint
 -- Full-Text Search (FTS5) for message content
 CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
   content,
   content='messages',
   content_rowid='rowid'
 );
-
+--> statement-breakpoint
 -- Keep FTS index in sync
 CREATE TRIGGER IF NOT EXISTS messages_fts_insert AFTER INSERT ON messages BEGIN
   INSERT INTO messages_fts(rowid, content) VALUES (new.rowid, new.content);
 END;
-
+--> statement-breakpoint
 CREATE TRIGGER IF NOT EXISTS messages_fts_delete AFTER DELETE ON messages BEGIN
   INSERT INTO messages_fts(messages_fts, rowid, content) VALUES ('delete', old.rowid, old.content);
 END;
-
+--> statement-breakpoint
 CREATE TRIGGER IF NOT EXISTS messages_fts_update AFTER UPDATE ON messages BEGIN
   INSERT INTO messages_fts(messages_fts, rowid, content) VALUES ('delete', old.rowid, old.content);
   INSERT INTO messages_fts(rowid, content) VALUES (new.rowid, new.content);

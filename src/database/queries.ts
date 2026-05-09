@@ -172,34 +172,30 @@ export function getMessages(
 /* ------------------------------------------------------------------ */
 
 export function getMessageById(id: string): MessageDetail | null {
-  const message = db.query.messages.findFirst({
-    where: eq(schema.messages.id, id),
-    with: {
-      edits: {
-        orderBy: [desc(schema.messageEdits.editedAt)],
-      },
-      attachments: true,
-      reactions: true,
-      author: true,
-      guild: true,
-      channel: true,
-    },
-  });
-
+  const message = db.select().from(schema.messages).where(eq(schema.messages.id, id)).get();
   if (!message) return null;
 
-  const { edits, attachments, reactions, ...msg } = message as typeof message & {
-    edits: (typeof schema.messageEdits.$inferSelect)[];
-    attachments: (typeof schema.attachments.$inferSelect)[];
-    reactions: (typeof schema.reactions.$inferSelect)[];
-  };
+  const edits = db
+    .select()
+    .from(schema.messageEdits)
+    .where(eq(schema.messageEdits.messageId, id))
+    .orderBy(desc(schema.messageEdits.editedAt))
+    .all();
 
-  return {
-    message: msg as unknown as typeof schema.messages.$inferSelect,
-    edits: edits ?? [],
-    attachments: attachments ?? [],
-    reactions: reactions ?? [],
-  };
+  const attachments = db
+    .select()
+    .from(schema.attachments)
+    .where(eq(schema.attachments.messageId, id))
+    .all();
+
+  const reactions = db
+    .select()
+    .from(schema.reactions)
+    .where(eq(schema.reactions.messageId, id))
+    .orderBy(desc(schema.reactions.createdAt))
+    .all();
+
+  return { message, edits, attachments, reactions };
 }
 
 /* ------------------------------------------------------------------ */
@@ -510,9 +506,7 @@ export function getTopUsers(days: number = 30): { userId: string; count: number 
 /* ------------------------------------------------------------------ */
 
 export function getUserById(id: string) {
-  return db.query.users.findFirst({
-    where: eq(schema.users.id, id),
-  });
+  return db.select().from(schema.users).where(eq(schema.users.id, id)).get();
 }
 
 export function getUserMessageCount(userId: string): number {
