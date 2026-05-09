@@ -8,6 +8,8 @@ interface ApiResponse<T> {
   data: T;
 }
 
+const ABSOLUTE_URL_PATTERN = /^https?:\/\//i;
+
 class FetchClient {
   private baseURL: string;
   private defaultHeaders: Record<string, string>;
@@ -22,7 +24,7 @@ class FetchClient {
   private async request<T = unknown>(url: string, config: RequestConfig = {}): Promise<ApiResponse<T>> {
     const absoluteBaseURL = new URL(this.baseURL, window.location.origin);
     const normalizedBaseURL = absoluteBaseURL.toString().endsWith('/') ? absoluteBaseURL.toString() : `${absoluteBaseURL.toString()}/`;
-    const fullURL = /^https?:\/\//i.test(url)
+    const fullURL = ABSOLUTE_URL_PATTERN.test(url)
       ? new URL(url)
       : new URL(url.replace(/^\/+/, ''), normalizedBaseURL);
     if (config.params) {
