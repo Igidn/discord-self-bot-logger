@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import * as schema from './schema.js';
@@ -24,7 +25,14 @@ export const db = drizzle(sqlite, { schema });
 export { sqlite };
 
 // Run migrations
-const migrationsFolder = path.join(__dirname, 'migrations');
+// Walk up to project root (where package.json lives) so it works both bundled (dist/) and unbundled (src/)
+let projectRoot = __dirname;
+while (!fs.existsSync(path.join(projectRoot, 'package.json'))) {
+  const parent = path.dirname(projectRoot);
+  if (parent === projectRoot) break;
+  projectRoot = parent;
+}
+const migrationsFolder = path.join(projectRoot, 'src', 'database', 'migrations');
 try {
   migrate(db, { migrationsFolder });
   logger.info('Database migrations completed successfully');
