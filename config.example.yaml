@@ -1,0 +1,54 @@
+# Discord user token (required)
+token: YOUR_DISCORD_USER_TOKEN
+
+# Pino log level: trace | debug | info | warn | error | fatal
+logLevel: info
+
+logging:
+  # Guild IDs to monitor (empty = discovery mode, no logging)
+  guilds: []
+
+  # Opt-in to DM logging (default false for privacy)
+  logDirectMessages: false
+
+  # Event categories to capture
+  events:
+    messages: true
+    messageEdits: true
+    messageDeletes: true
+    reactions: true
+    members: true
+    presence: true
+    voice: true
+    guildChanges: true
+    channelChanges: true
+    roleChanges: true
+    threads: true
+    invites: true
+    attachments: true
+
+  # Retention in days
+  retentionDays: 365
+
+  # Attachment download & compression (image/* only)
+  attachments:
+    enabled: true
+    maxSizeMb: 25
+    path: ./storage/attachments
+    compression:
+      enabled: true
+      quality: 80
+      maxWidth: 1920
+      maxHeight: 1080
+      format: webp
+      stripMetadata: true
+
+dashboard:
+  host: 127.0.0.1
+  port: 3333
+  # Auth token — auto-generated if omitted
+  authToken: null
+
+database:
+  path: ./storage/logs.db
+  wal: true

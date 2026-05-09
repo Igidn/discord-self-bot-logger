@@ -4,12 +4,13 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import * as schema from './schema.js';
+import { config } from '../config/loader.js';
 import { logger } from '../utils/logger.js';
 import { ensureDir } from '../utils/paths.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const dbPath = process.env.DATABASE_PATH || path.resolve(process.cwd(), 'storage', 'logs.db');
+const dbPath = config.database.path;
 
 ensureDir(path.dirname(dbPath));
 

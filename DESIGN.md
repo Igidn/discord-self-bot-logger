@@ -579,7 +579,7 @@ discord-selfbot-logger/
 ├── tsconfig.json
 ├── tsup.config.ts
 ├── config.yaml                 # User configuration (gitignored)
-├── .env.example                # TOKEN, etc.
+├── config.example.yaml         # Configuration template
 │
 ├── src/
 │   ├── main.ts                 # Entry point: starts bot + dashboard
@@ -764,8 +764,8 @@ Discord does not send message content on delete. If the message is in cache (dis
 npm install
 
 # 2. Configure
-cp .env.example .env
-# Edit .env + config.yaml
+cp config.example.yaml config.yaml
+# Edit config.yaml
 
 # 3. Run migrations
 npm run db:migrate

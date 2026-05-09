@@ -9,6 +9,9 @@ export const configSchema = z.object({
   /** Discord user token (keep secret) */
   token: z.string().optional(),
 
+  /** Pino log level */
+  logLevel: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
+
   logging: z.object({
     /** Guild IDs to monitor (empty = discovery mode, no logging) */
     guilds: z.array(z.string()).default([]),

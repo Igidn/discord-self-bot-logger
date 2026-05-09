@@ -1,4 +1,4 @@
-const token = localStorage.getItem('authToken') || import.meta.env.VITE_AUTH_TOKEN || '';
+const token = localStorage.getItem('authToken') || '';
 
 interface RequestConfig extends RequestInit {
   params?: Record<string, string>;
@@ -34,7 +34,7 @@ class FetchClient {
       });
     }
 
-    const t = localStorage.getItem('authToken') || import.meta.env.VITE_AUTH_TOKEN || '';
+    const t = localStorage.getItem('authToken') || '';
     const headers: Record<string, string> = {
       ...this.defaultHeaders,
       ...(config.headers as Record<string, string> || {}),

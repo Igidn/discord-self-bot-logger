@@ -20,6 +20,8 @@ import { io as SocketIOClient } from 'socket.io-client';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEST_DB = path.join(__dirname, 'test-logs.db');
 const TEST_TOKEN = 'test-auth-token-12345';
+const CONFIG_PATH = path.resolve(process.cwd(), 'config.yaml');
+let originalConfig: string | null = null;
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -55,14 +57,28 @@ describe('Discord Selfbot Logger Integration', () => {
     try { fs.unlinkSync(TEST_DB + '-wal'); } catch {}
     try { fs.unlinkSync(TEST_DB + '-shm'); } catch {}
 
-    // Set environment variables BEFORE any project imports
-    process.env.DATABASE_PATH = TEST_DB;
-    process.env.TOKEN = 'dummy-discord-token-for-testing';
-    process.env.AUTH_TOKEN = TEST_TOKEN;
-    process.env.DASHBOARD_HOST = '127.0.0.1';
-    process.env.DASHBOARD_PORT = '33333';
+    // Backup original config.yaml if it exists
+    if (fs.existsSync(CONFIG_PATH)) {
+      originalConfig = fs.readFileSync(CONFIG_PATH, 'utf-8');
+    }
+
+    // Write test-specific config.yaml
+    fs.writeFileSync(
+      CONFIG_PATH,
+      `token: dummy-discord-token-for-testing
+dashboard:
+  host: 127.0.0.1
+  port: 33333
+  authToken: ${TEST_TOKEN}
+database:
+  path: ${TEST_DB}
+logging:
+  logLevel: silent
+`,
+      'utf-8'
+    );
+
     process.env.NODE_ENV = 'production';
-    process.env.LOG_LEVEL = 'silent';
 
     // Import project modules (side-effects: DB init + migrations)
     dbModule = await import('../src/database/index.js');
@@ -79,6 +95,12 @@ describe('Discord Selfbot Logger Integration', () => {
     }
     if (dbModule) {
       dbModule.closeDatabase();
+    }
+    // Restore original config.yaml
+    if (originalConfig !== null) {
+      fs.writeFileSync(CONFIG_PATH, originalConfig, 'utf-8');
+    } else {
+      try { fs.unlinkSync(CONFIG_PATH); } catch {}
     }
     // Clean up test DB files
     try { fs.unlinkSync(TEST_DB); } catch {}
