@@ -63,7 +63,7 @@ class SimpleLRU<T> {
 
 const userCache = new SimpleLRU<boolean>(1000);
 const channelCache = new SimpleLRU<boolean>(1000);
-const guildCache = new SimpleLRU<boolean>(1000);
+const guildCache = new SimpleLRU<'placeholder' | 'full'>(1000);
 
 const upsertUserStmt = sqlite.prepare(`
   INSERT INTO users (id, username, discriminator, avatar_url, bot, first_seen_at)
@@ -142,7 +142,7 @@ export function enrichChannel(channel: DiscordChannel): void {
 }
 
 export function enrichGuild(guild: DiscordGuild): void {
-  if (guildCache.get(guild.id)) return;
+  if (guildCache.get(guild.id) === 'full') return;
 
   const iconUrl = typeof guild.iconURL === 'function' ? guild.iconURL({ size: 128 }) : null;
   const joinedAt = guild.joinedAt ? Math.floor(guild.joinedAt.getTime() / 1000) : null;
@@ -156,7 +156,7 @@ export function enrichGuild(guild: DiscordGuild): void {
       joinedAt,
       Math.floor(Date.now() / 1000)
     );
-    guildCache.set(guild.id, true);
+    guildCache.set(guild.id, 'full');
   } catch (err) {
     logger.error({ guildId: guild.id, err }, 'Failed to enrich guild');
   }
@@ -167,7 +167,7 @@ export function ensureGuild(guildId: string): void {
 
   try {
     ensureGuildStmt.run(guildId, 'Unknown Guild', null, null, null, Math.floor(Date.now() / 1000));
-    guildCache.set(guildId, true);
+    guildCache.set(guildId, 'placeholder');
   } catch (err) {
     logger.error({ guildId, err }, 'Failed to ensure guild placeholder');
   }
