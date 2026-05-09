@@ -3,13 +3,73 @@ import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { createWriteStream } from 'node:fs';
 import type { Readable } from 'node:stream';
-import axios from 'axios';
+import http from 'node:http';
+import https from 'node:https';
+import { URL } from 'node:url';
 import sharp from 'sharp';
 import PQueue from 'p-queue';
 import { db } from '@/database/index.js';
 import { sql } from 'drizzle-orm';
 import { logger } from '@/utils/logger.js';
 import { loadConfig } from '@/config/loader.js';
+
+function request(
+  urlStr: string,
+  options: http.RequestOptions,
+  maxRedirects: number
+): Promise<{ response: http.IncomingMessage; url: string }> {
+  return new Promise((resolve, reject) => {
+    const url = new URL(urlStr);
+    const client = url.protocol === 'https:' ? https : http;
+    const req = client.request(url, options, (res) => {
+      if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        if (maxRedirects <= 0) {
+          res.resume();
+          reject(new Error('Too many redirects'));
+          return;
+        }
+        const redirectUrl = new URL(res.headers.location, url).toString();
+        res.resume();
+        resolve(request(redirectUrl, options, maxRedirects - 1));
+        return;
+      }
+      resolve({ response: res, url: urlStr });
+    });
+    req.on('error', reject);
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error('Request timeout'));
+    });
+    if (options.timeout) {
+      req.setTimeout(options.timeout);
+    }
+    req.end();
+  });
+}
+
+async function httpHead(
+  url: string,
+  options: { timeout?: number; maxRedirects?: number; headers?: http.OutgoingHttpHeaders } = {}
+): Promise<{ headers: http.IncomingHttpHeaders }> {
+  const { response } = await request(url, { method: 'HEAD', headers: options.headers, timeout: options.timeout }, options.maxRedirects ?? 5);
+  if (!response.statusCode || response.statusCode < 200 || response.statusCode >= 300) {
+    response.resume();
+    throw new Error(`HEAD request failed with status ${response.statusCode ?? 'unknown'}`);
+  }
+  return { headers: response.headers };
+}
+
+async function httpGetStream(
+  url: string,
+  options: { timeout?: number; maxRedirects?: number; headers?: http.OutgoingHttpHeaders } = {}
+): Promise<{ data: Readable }> {
+  const { response } = await request(url, { method: 'GET', headers: options.headers, timeout: options.timeout }, options.maxRedirects ?? 5);
+  if (!response.statusCode || response.statusCode < 200 || response.statusCode >= 300) {
+    response.resume();
+    throw new Error(`GET request failed with status ${response.statusCode ?? 'unknown'}`);
+  }
+  return { data: response as Readable };
+}
 
 export interface Attachment {
   id: string;
@@ -126,7 +186,7 @@ async function attemptDownload(
   const url = attachment.proxyURL || attachment.url;
 
   // b. HEAD request to check content-length
-  const headResp = await axios.head(url, { timeout: 15000, maxRedirects: 5 });
+  const headResp = await httpHead(url, { timeout: 15000, maxRedirects: 5 });
   const contentLength = headResp.headers['content-length'];
   const maxBytes = cfg.maxSizeMb * 1024 * 1024;
   if (contentLength && parseInt(String(contentLength), 10) > maxBytes) {
@@ -142,8 +202,7 @@ async function attemptDownload(
   fs.mkdirSync(tmpDir, { recursive: true });
   const tempPath = path.join(tmpDir, `${attachment.id}.tmp`);
 
-  const response = await axios.get<Readable>(url, {
-    responseType: 'stream',
+  const response = await httpGetStream(url, {
     timeout: 60000,
     maxRedirects: 5,
     headers: { Accept: attachment.contentType ?? 'image/*' },
