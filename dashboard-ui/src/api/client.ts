@@ -23,7 +23,8 @@ class FetchClient {
 
   private async request<T = unknown>(url: string, config: RequestConfig = {}): Promise<ApiResponse<T>> {
     const absoluteBaseURL = new URL(this.baseURL, window.location.origin);
-    const normalizedBaseURL = absoluteBaseURL.toString().endsWith('/') ? absoluteBaseURL.toString() : `${absoluteBaseURL.toString()}/`;
+    const baseURLString = absoluteBaseURL.toString();
+    const normalizedBaseURL = baseURLString.endsWith('/') ? baseURLString : `${baseURLString}/`;
     const fullURL = ABSOLUTE_URL_PATTERN.test(url)
       ? new URL(url)
       : new URL(url.replace(/^\/+/, ''), normalizedBaseURL);
