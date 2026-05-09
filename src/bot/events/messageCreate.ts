@@ -4,6 +4,12 @@ import { logger } from '../../utils/logger.js';
 import { requireGuild } from '../guildFilter.js';
 import { broadcaster } from '../../dashboard/socket/broadcaster.js';
 import { downloadAttachment } from '../../services/attachmentDownloader.js';
+import {
+  enrichUser,
+  enrichChannel,
+  enrichGuild,
+  ensureGuild,
+} from '../../services/enricher.js';
 
 async function onMessageCreate(client: Client, _db: any, message: Message) {
   try {
@@ -13,86 +19,43 @@ async function onMessageCreate(client: Client, _db: any, message: Message) {
     const authorId = message.author?.id ?? 'unknown';
 
     // Upsert user cache
-    try {
-      const avatarUrl = message.author?.avatarURL({ size: 256 }) ?? null;
-      sqlite.prepare(`
-        INSERT INTO users (id, username, discriminator, avatar_url, first_seen_at)
-        VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET
-          username = excluded.username,
-          discriminator = excluded.discriminator,
-          avatar_url = excluded.avatar_url
-      `).run(
-        authorId,
-        message.author?.username ?? 'unknown',
-        message.author?.discriminator ?? '0',
-        avatarUrl,
-        Math.floor(Date.now() / 1000)
-      );
-    } catch (err) {
-      logger.error({ err }, 'Failed to upsert user in messageCreate');
+    if (message.author) {
+      enrichUser({
+        id: message.author.id,
+        username: message.author.username,
+        discriminator: message.author.discriminator,
+        avatarURL: message.author.avatarURL.bind(message.author),
+        bot: message.author.bot,
+      });
     }
 
     // Upsert guild cache (required for messages FK)
     if (message.guildId) {
-      try {
-        if (message.guild) {
-          const iconUrl = message.guild.iconURL({ size: 128 }) ?? null;
-          const joinedAt = message.guild.joinedAt ? Math.floor(message.guild.joinedAt.getTime() / 1000) : null;
-          sqlite.prepare(`
-            INSERT INTO guilds (id, name, icon_url, owner_id, joined_at, configured_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET
-              name = excluded.name,
-              icon_url = excluded.icon_url,
-              owner_id = excluded.owner_id,
-              joined_at = excluded.joined_at
-          `).run(
-            message.guild.id,
-            message.guild.name,
-            iconUrl,
-            message.guild.ownerId,
-            joinedAt,
-            Math.floor(Date.now() / 1000)
-          );
-        } else {
-          // Guild not cached: insert placeholder to satisfy FK
-          sqlite.prepare(`
-            INSERT INTO guilds (id, name, icon_url, owner_id, joined_at, configured_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(id) DO NOTHING
-          `).run(message.guildId, 'Unknown Guild', null, null, null, Math.floor(Date.now() / 1000));
-        }
-      } catch (err) {
-        logger.error({ err }, 'Failed to upsert guild in messageCreate');
+      if (message.guild) {
+        enrichGuild({
+          id: message.guild.id,
+          name: message.guild.name,
+          iconURL: message.guild.iconURL.bind(message.guild),
+          ownerId: message.guild.ownerId,
+          joinedAt: message.guild.joinedAt,
+        });
+      } else {
+        ensureGuild(message.guildId);
       }
     }
 
     // Upsert channel cache
     if (message.channel && message.guildId) {
-      try {
-        const ch = message.channel as any;
-        sqlite.prepare(`
-          INSERT INTO channels (id, guild_id, name, type, topic, nsfw, parent_id)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-          ON CONFLICT(id) DO UPDATE SET
-            name = excluded.name,
-            type = excluded.type,
-            topic = excluded.topic,
-            nsfw = excluded.nsfw,
-            parent_id = excluded.parent_id
-        `).run(
-          ch.id,
-          message.guildId,
-          ch.name ?? null,
-          ch.type ?? null,
-          ch.topic ?? null,
-          ch.nsfw ? 1 : 0,
-          ch.parentId ?? null
-        );
-      } catch (err) {
-        logger.error({ err }, 'Failed to upsert channel in messageCreate');
-      }
+      const ch = message.channel as any;
+      enrichChannel({
+        id: ch.id,
+        name: ch.name,
+        type: ch.type,
+        guildId: message.guildId,
+        topic: ch.topic,
+        nsfw: ch.nsfw,
+        parentId: ch.parentId,
+      });
     }
 
     // Build sticker markdown hyperlinks
