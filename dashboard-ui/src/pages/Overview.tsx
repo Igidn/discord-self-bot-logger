@@ -10,7 +10,6 @@ import {
   Server,
   TrendingUp,
   Users,
-  Wifi,
   WifiOff,
 } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
@@ -157,20 +156,13 @@ export default function Overview() {
       description: 'Current session runtime',
       trend: null,
     },
-    {
-      label: 'Realtime',
-      value: statusLabel(status),
-      icon: isConnected ? Wifi : WifiOff,
-      description: 'WebSocket connection',
-      trend: isConnected ? 'connected' : 'disconnected',
-    },
   ];
 
   return (
     <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-6">
 
       {/* Stats row */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {statCards.map((card) => (
           <Card key={card.label} className="relative overflow-hidden">
             <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 pb-2">

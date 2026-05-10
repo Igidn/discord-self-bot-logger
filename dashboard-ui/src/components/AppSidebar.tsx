@@ -2,20 +2,13 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   Activity,
   BarChart3,
-  ChevronDown,
   LayoutDashboard,
   MonitorCog,
   Server,
   Settings as SettingsIcon,
   Zap,
 } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+
 import {
   Sidebar,
   SidebarContent,
@@ -160,49 +153,23 @@ export function AppSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <SidebarMenuButton
-                  size="lg"
-                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+            <SidebarMenuButton
+              size="lg"
+            >
+              <div className="flex size-8 items-center justify-center rounded-lg bg-sidebar-accent text-sidebar-accent-foreground">
+                <Zap className="size-4" />
+              </div>
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-medium">Realtime capture</span>
+                <span
+                  className={`truncate text-xs ${
+                    isConnected ? 'text-emerald-500' : 'text-muted-foreground'
+                  }`}
                 >
-                  <div className="flex size-8 items-center justify-center rounded-lg bg-sidebar-accent text-sidebar-accent-foreground">
-                    <Zap className="size-4" />
-                  </div>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">Realtime capture</span>
-                    <span
-                      className={`truncate text-xs ${
-                        isConnected ? 'text-emerald-500' : 'text-muted-foreground'
-                      }`}
-                    >
-                      {isConnected ? 'Connected' : statusLabel(status)}
-                    </span>
-                  </div>
-                  <ChevronDown className="ml-auto size-4" />
-                </SidebarMenuButton>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-                side="bottom"
-                align="end"
-                sideOffset={4}
-              >
-                <DropdownMenuItem asChild>
-                  <Link to="/">
-                    <LayoutDashboard className="size-4" />
-                    Overview
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/settings">
-                    <SettingsIcon className="size-4" />
-                    Settings
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  {isConnected ? 'Connected' : statusLabel(status)}
+                </span>
+              </div>
+            </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

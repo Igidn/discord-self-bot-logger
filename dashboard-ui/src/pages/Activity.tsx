@@ -1,13 +1,26 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import {
-  Users,
-  Mic,
-  Radio,
-  ShieldAlert,
-} from 'lucide-react';
+import { Inbox, Mic, Radio, ShieldAlert, Users } from 'lucide-react';
 import apiClient from '../api/client';
 import { formatDateTime, type TimestampValue } from '../utils/datetime';
+import { Badge } from '@/components/ui/badge';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type ActivityTab = 'members' | 'voice' | 'presence' | 'audit';
 
@@ -83,208 +96,309 @@ export default function Activity() {
     fetchAll();
   }, []);
 
-  const tabs: { key: ActivityTab; label: string; icon: React.ElementType }[] = [
-    { key: 'members', label: 'Members', icon: Users },
-    { key: 'voice', label: 'Voice', icon: Mic },
-    { key: 'presence', label: 'Presence', icon: Radio },
-    { key: 'audit', label: 'Guild Audit', icon: ShieldAlert },
-  ];
-
-  const switchTab = (key: ActivityTab) => {
-    setSearchParams({ tab: key });
-  };
-
   return (
-    <div className="p-6 space-y-4 overflow-y-auto">
-      <h1 className="text-2xl font-bold">Activity Explorer</h1>
-
-      <div className="flex gap-2 border-b border-gray-800">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => switchTab(t.key)}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              tab === t.key
-                ? 'border-discord-blurple text-discord-blurple'
-                : 'border-transparent text-gray-400 hover:text-gray-100'
-            }`}
-          >
-            <t.icon className="w-4 h-4" />
-            {t.label}
-          </button>
-        ))}
+    <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-6">
+      <div className="space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight">Activity Explorer</h1>
+        <p className="text-sm text-muted-foreground">
+          Track member joins, voice events, presence updates, and audit actions across guilds.
+        </p>
       </div>
 
-      {loading ? (
-        <div className="text-sm text-gray-500">Loading activity...</div>
-      ) : (
-        <>
-          {tab === 'members' && <MemberTable data={members} />}
-          {tab === 'voice' && <VoiceTable data={voice} />}
-          {tab === 'presence' && <PresenceTable data={presence} />}
-          {tab === 'audit' && <AuditTable data={audit} />}
-        </>
-      )}
+      <Tabs value={tab} onValueChange={(v) => setSearchParams({ tab: v })}>
+        <TabsList className="h-auto flex-wrap">
+          <TabsTrigger value="members" className="gap-1.5 text-sm">
+            <Users className="size-3.5" />
+            Members
+            {!loading && <CountPill count={members.length} />}
+          </TabsTrigger>
+          <TabsTrigger value="voice" className="gap-1.5 text-sm">
+            <Mic className="size-3.5" />
+            Voice
+            {!loading && <CountPill count={voice.length} />}
+          </TabsTrigger>
+          <TabsTrigger value="presence" className="gap-1.5 text-sm">
+            <Radio className="size-3.5" />
+            Presence
+            {!loading && <CountPill count={presence.length} />}
+          </TabsTrigger>
+          <TabsTrigger value="audit" className="gap-1.5 text-sm">
+            <ShieldAlert className="size-3.5" />
+            Guild Audit
+            {!loading && <CountPill count={audit.length} />}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="members" className="mt-4">
+          <MemberTable data={members} loading={loading} />
+        </TabsContent>
+        <TabsContent value="voice" className="mt-4">
+          <VoiceTable data={voice} loading={loading} />
+        </TabsContent>
+        <TabsContent value="presence" className="mt-4">
+          <PresenceTable data={presence} loading={loading} />
+        </TabsContent>
+        <TabsContent value="audit" className="mt-4">
+          <AuditTable data={audit} loading={loading} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
 
-function MemberTable({ data }: { data: MemberEvent[] }) {
+// ─── Shared helpers ─────────────────────────────────────────────────────────────
+
+function CountPill({ count }: { count: number }) {
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-      <table className="w-full text-sm">
-        <thead className="bg-gray-850 text-gray-400">
-          <tr>
-            <th className="text-left px-4 py-2">Event</th>
-            <th className="text-left px-4 py-2">User</th>
-            <th className="text-left px-4 py-2">Guild</th>
-            <th className="text-left px-4 py-2">Time</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-800">
-          {data.map((row) => (
-            <tr key={row.id} className="hover:bg-gray-850 transition-colors">
-              <td className="px-4 py-2 font-medium">{row.eventType}</td>
-              <td className="px-4 py-2 text-gray-400">{row.userId}</td>
-              <td className="px-4 py-2 text-gray-400">{row.guildId}</td>
-              <td className="px-4 py-2 text-gray-500 text-xs">
-                {formatDateTime(row.createdAt)}
-              </td>
-            </tr>
-          ))}
-          {data.length === 0 && (
-            <tr>
-              <td colSpan={4} className="px-4 py-6 text-center text-gray-500">
-                No member events found.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
+    <span className="ml-0.5 rounded-full bg-background px-1.5 py-0.5 text-xs tabular-nums text-muted-foreground shadow-sm">
+      {count}
+    </span>
   );
 }
 
-function VoiceTable({ data }: { data: VoiceEvent[] }) {
+function TableSkeleton({ cols }: { cols: number }) {
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-      <table className="w-full text-sm">
-        <thead className="bg-gray-850 text-gray-400">
-          <tr>
-            <th className="text-left px-4 py-2">Event</th>
-            <th className="text-left px-4 py-2">User</th>
-            <th className="text-left px-4 py-2">Channel</th>
-            <th className="text-left px-4 py-2">Time</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-800">
-          {data.map((row) => (
-            <tr key={row.id} className="hover:bg-gray-850 transition-colors">
-              <td className="px-4 py-2 font-medium">{row.eventType}</td>
-              <td className="px-4 py-2 text-gray-400">{row.userId}</td>
-              <td className="px-4 py-2 text-gray-400">{row.channelId ?? '-'}</td>
-              <td className="px-4 py-2 text-gray-500 text-xs">
-                {formatDateTime(row.createdAt)}
-              </td>
-            </tr>
+    <div className="space-y-px">
+      {Array.from({ length: 7 }).map((_, i) => (
+        <div key={i} className="flex gap-4 px-4 py-3">
+          {Array.from({ length: cols }).map((_, j) => (
+            <Skeleton key={j} className="h-4 flex-1" style={{ opacity: 1 - i * 0.1 }} />
           ))}
-          {data.length === 0 && (
-            <tr>
-              <td colSpan={4} className="px-4 py-6 text-center text-gray-500">
-                No voice events found.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+        </div>
+      ))}
     </div>
   );
 }
 
-function PresenceTable({ data }: { data: PresenceEvent[] }) {
+function EmptyState({ message }: { message: string }) {
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-      <table className="w-full text-sm">
-        <thead className="bg-gray-850 text-gray-400">
-          <tr>
-            <th className="text-left px-4 py-2">User</th>
-            <th className="text-left px-4 py-2">Status</th>
-            <th className="text-left px-4 py-2">Clients</th>
-            <th className="text-left px-4 py-2">Updated</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-800">
-          {data.map((row) => (
-            <tr key={row.id} className="hover:bg-gray-850 transition-colors">
-              <td className="px-4 py-2">{row.userId}</td>
-              <td className="px-4 py-2">
-                <span className={`inline-block w-2 h-2 rounded-full mr-2 ${statusColor(row.status)}`} />
-                {row.status ?? 'offline'}
-              </td>
-              <td className="px-4 py-2 text-gray-400 text-xs">{row.clientStatus ?? '-'}</td>
-              <td className="px-4 py-2 text-gray-500 text-xs">
-                {formatDateTime(row.updatedAt)}
-              </td>
-            </tr>
-          ))}
-          {data.length === 0 && (
-            <tr>
-              <td colSpan={4} className="px-4 py-6 text-center text-gray-500">
-                No presence updates found.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+    <div className="flex min-h-[200px] flex-col items-center justify-center gap-3 rounded-lg border border-dashed text-center">
+      <Inbox className="size-8 text-muted-foreground/40" />
+      <p className="text-sm text-muted-foreground">{message}</p>
     </div>
   );
 }
 
-function AuditTable({ data }: { data: AuditEvent[] }) {
+function eventVariant(type: string): 'default' | 'secondary' | 'destructive' | 'outline' {
+  const lower = type.toLowerCase();
+  if (/join|create|add|connect|grant/.test(lower)) return 'default';
+  if (/leave|remove|delete|ban|kick|disconnect|prune/.test(lower)) return 'destructive';
+  return 'secondary';
+}
+
+function StatusDot({ status }: { status?: string | null }) {
+  const colorMap: Record<string, string> = {
+    online: 'bg-emerald-500',
+    idle: 'bg-amber-500',
+    dnd: 'bg-red-500',
+  };
+  const color = colorMap[status ?? ''] ?? 'bg-muted-foreground/40';
+  return <span className={`inline-block size-2 shrink-0 rounded-full ${color}`} />;
+}
+
+// ─── Table panels ───────────────────────────────────────────────────────────────
+
+function MemberTable({ data, loading }: { data: MemberEvent[]; loading: boolean }) {
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-      <table className="w-full text-sm">
-        <thead className="bg-gray-850 text-gray-400">
-          <tr>
-            <th className="text-left px-4 py-2">Action</th>
-            <th className="text-left px-4 py-2">Target</th>
-            <th className="text-left px-4 py-2">By</th>
-            <th className="text-left px-4 py-2">Time</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-800">
-          {data.map((row) => (
-            <tr key={row.id} className="hover:bg-gray-850 transition-colors">
-              <td className="px-4 py-2 font-medium">{row.actionType}</td>
-              <td className="px-4 py-2 text-gray-400">{row.targetId ?? '-'}</td>
-              <td className="px-4 py-2 text-gray-400">{row.userId ?? '-'}</td>
-              <td className="px-4 py-2 text-gray-500 text-xs">
-                {formatDateTime(row.createdAt)}
-              </td>
-            </tr>
-          ))}
-          {data.length === 0 && (
-            <tr>
-              <td colSpan={4} className="px-4 py-6 text-center text-gray-500">
-                No audit events found.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Member Events</CardTitle>
+        <CardDescription>Join, leave, role, and nickname changes.</CardDescription>
+      </CardHeader>
+      <CardContent className="p-0">
+        {loading ? (
+          <TableSkeleton cols={4} />
+        ) : data.length === 0 ? (
+          <div className="px-6 pb-6">
+            <EmptyState message="No member events found." />
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Event</TableHead>
+                <TableHead>User</TableHead>
+                <TableHead>Guild</TableHead>
+                <TableHead className="text-right">Time</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell>
+                    <Badge variant={eventVariant(row.eventType)} className="text-xs font-medium">
+                      {row.eventType}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {row.userId}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {row.guildId}
+                  </TableCell>
+                  <TableCell className="text-right text-xs text-muted-foreground tabular-nums">
+                    {formatDateTime(row.createdAt)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
-function statusColor(status?: string | null) {
-  switch (status) {
-    case 'online':
-      return 'bg-discord-green';
-    case 'idle':
-      return 'bg-discord-yellow';
-    case 'dnd':
-      return 'bg-discord-red';
-    default:
-      return 'bg-gray-600';
-  }
+function VoiceTable({ data, loading }: { data: VoiceEvent[]; loading: boolean }) {
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Voice Events</CardTitle>
+        <CardDescription>Channel joins, leaves, and state changes.</CardDescription>
+      </CardHeader>
+      <CardContent className="p-0">
+        {loading ? (
+          <TableSkeleton cols={4} />
+        ) : data.length === 0 ? (
+          <div className="px-6 pb-6">
+            <EmptyState message="No voice events found." />
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Event</TableHead>
+                <TableHead>User</TableHead>
+                <TableHead>Channel</TableHead>
+                <TableHead className="text-right">Time</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell>
+                    <Badge variant={eventVariant(row.eventType)} className="text-xs font-medium">
+                      {row.eventType}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {row.userId}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {row.channelId ?? <span className="text-muted-foreground/40">—</span>}
+                  </TableCell>
+                  <TableCell className="text-right text-xs text-muted-foreground tabular-nums">
+                    {formatDateTime(row.createdAt)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function PresenceTable({ data, loading }: { data: PresenceEvent[]; loading: boolean }) {
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Presence Updates</CardTitle>
+        <CardDescription>Online status and client state changes.</CardDescription>
+      </CardHeader>
+      <CardContent className="p-0">
+        {loading ? (
+          <TableSkeleton cols={4} />
+        ) : data.length === 0 ? (
+          <div className="px-6 pb-6">
+            <EmptyState message="No presence updates found." />
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>User</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Clients</TableHead>
+                <TableHead className="text-right">Updated</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {row.userId}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <StatusDot status={row.status} />
+                      <span className="text-sm capitalize">{row.status ?? 'offline'}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {row.clientStatus ?? <span className="text-muted-foreground/40">—</span>}
+                  </TableCell>
+                  <TableCell className="text-right text-xs text-muted-foreground tabular-nums">
+                    {formatDateTime(row.updatedAt)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function AuditTable({ data, loading }: { data: AuditEvent[]; loading: boolean }) {
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Guild Audit Log</CardTitle>
+        <CardDescription>Administrative actions and permission changes.</CardDescription>
+      </CardHeader>
+      <CardContent className="p-0">
+        {loading ? (
+          <TableSkeleton cols={4} />
+        ) : data.length === 0 ? (
+          <div className="px-6 pb-6">
+            <EmptyState message="No audit events found." />
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Action</TableHead>
+                <TableHead>Target</TableHead>
+                <TableHead>By</TableHead>
+                <TableHead className="text-right">Time</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell>
+                    <Badge variant={eventVariant(row.actionType)} className="text-xs font-medium">
+                      {row.actionType}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {row.targetId ?? <span className="text-muted-foreground/40">—</span>}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {row.userId ?? <span className="text-muted-foreground/40">—</span>}
+                  </TableCell>
+                  <TableCell className="text-right text-xs text-muted-foreground tabular-nums">
+                    {formatDateTime(row.createdAt)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
