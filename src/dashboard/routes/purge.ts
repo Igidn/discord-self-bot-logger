@@ -5,7 +5,18 @@ import { logger } from '@/utils/logger.js';
 
 const router = Router();
 
-router.delete('/', (_req, res, next) => {
+router.delete('/', (req, res, next) => {
+  const remoteAddr = req.socket?.remoteAddress ?? req.ip ?? '';
+  const isLocal =
+    remoteAddr === '127.0.0.1' ||
+    remoteAddr === '::1' ||
+    remoteAddr === '::ffff:127.0.0.1';
+
+  if (!isLocal) {
+    res.status(403).json({ error: 'Access denied: purge endpoint is restricted to local connections' });
+    return;
+  }
+
   try {
     const config = loadConfig();
     const retentionDays = config.logging.retentionDays;

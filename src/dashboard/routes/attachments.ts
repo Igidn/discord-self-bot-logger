@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import { eq } from 'drizzle-orm';
 import { db } from '@/database/index.js';
 import { attachments } from '@/database/schema.js';
+import { loadConfig } from '@/config/loader.js';
 import { logger } from '@/utils/logger.js';
 
 const router = Router();
@@ -22,7 +23,16 @@ router.get('/:id/preview', async (req, res, next) => {
     }
 
     if (attachment.localPath && fs.existsSync(attachment.localPath)) {
-      res.sendFile(path.resolve(attachment.localPath));
+      const config = loadConfig();
+      const attachmentsDir = path.resolve(process.cwd(), config.logging.attachments.path);
+      const resolvedPath = path.resolve(attachment.localPath);
+
+      if (!resolvedPath.startsWith(attachmentsDir + path.sep) && resolvedPath !== attachmentsDir) {
+        res.status(403).json({ error: 'Access denied' });
+        return;
+      }
+
+      res.sendFile(resolvedPath);
       return;
     }
 

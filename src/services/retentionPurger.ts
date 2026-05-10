@@ -21,8 +21,20 @@ export function startRetentionPurger(): void {
   logger.info({ retentionDays }, 'Starting retention purger');
 
   // Initial run after 10s, then every 24h
-  setTimeout(() => runPurge(retentionDays), 10000);
-  setInterval(() => runPurge(retentionDays), DAY_MS);
+  setTimeout(() => {
+    try {
+      runPurge(retentionDays);
+    } catch (err) {
+      logger.error({ err }, 'Scheduled retention purge failed');
+    }
+  }, 10000);
+  setInterval(() => {
+    try {
+      runPurge(retentionDays);
+    } catch (err) {
+      logger.error({ err }, 'Scheduled retention purge failed');
+    }
+  }, DAY_MS);
 }
 
 export interface PurgeSummary {

@@ -218,8 +218,19 @@ export function buildFilterSQL(filter: Filter): SQL | undefined {
   return buildClauseSQL(filter);
 }
 
+/** Coerce a filter value for a timestamp column into a JS Date.
+ *  Accepts ISO strings (e.g. datetime-local "2026-05-10T09:27"), numbers
+ *  (treated as Unix epoch milliseconds, matching JS Date.getTime()), or
+ *  Date objects passed through unchanged. */
+function coerceToDate(v: unknown): Date {
+  if (v instanceof Date) return v;
+  if (typeof v === 'number') return new Date(v);
+  return new Date(String(v));
+}
+
 function buildClauseSQL(clause: FilterClause): SQL | undefined {
-  const { field, op, value } = clause;
+  const { field, op } = clause;
+  let { value } = clause;
 
   const booleanFlagFields = new Set([
     'hasAttachment',
@@ -292,6 +303,15 @@ function buildClauseSQL(clause: FilterClause): SQL | undefined {
       break;
     case 'createdAt':
       col = schema.messages.createdAt;
+      // Coerce datetime-local strings / epoch numbers to Date objects so
+      // Drizzle can correctly compare against the integer timestamp column.
+      if (op !== 'isNull' && op !== 'isNotNull') {
+        if (op === 'between' && Array.isArray(value) && value.length === 2) {
+          value = [coerceToDate(value[0]), coerceToDate(value[1])];
+        } else if (value !== undefined) {
+          value = coerceToDate(value);
+        }
+      }
       break;
     default:
       return undefined;
@@ -351,16 +371,24 @@ export function searchMessages(
     conditions.push(filterSQL);
   }
 
-  // Cursor pagination
+  // Cursor pagination — validate format "timestampMs:id" before applying
   if (pagination.cursor) {
-    const [cursorDate, cursorId] = pagination.cursor.split(':');
-    const date = new Date(Number(cursorDate));
-    conditions.push(
-      or(
-        lt(schema.messages.createdAt, date),
-        and(eq(schema.messages.createdAt, date), lt(schema.messages.id, cursorId))
-      )
-    );
+    const sepIndex = pagination.cursor.indexOf(':');
+    if (sepIndex > 0) {
+      const tsStr = pagination.cursor.slice(0, sepIndex);
+      const cursorId = pagination.cursor.slice(sepIndex + 1);
+      const tsNum = Number(tsStr);
+      if (!isNaN(tsNum) && cursorId) {
+        const cursorDate = new Date(tsNum);
+        conditions.push(
+          or(
+            lt(schema.messages.createdAt, cursorDate),
+            and(eq(schema.messages.createdAt, cursorDate), lt(schema.messages.id, cursorId))
+          )
+        );
+      }
+    }
+    // Invalid cursor format is ignored — returns results from the beginning
   }
 
   // Try FTS5 first
