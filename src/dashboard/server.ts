@@ -34,13 +34,11 @@ export function startDashboardServer(host: string, port: number): HttpServer {
   app.use('/api/v1/stats', statsRouter);
   app.use('/api/v1/export', exportRouter);
 
-  if (process.env.NODE_ENV === 'production') {
-    const staticPath = path.resolve(process.cwd(), 'dashboard-ui', 'dist');
-    app.use(express.static(staticPath));
-    app.get('*', (_req, res) => {
-      res.sendFile(path.join(staticPath, 'index.html'));
-    });
-  }
+  const staticPath = path.resolve(process.cwd(), 'dashboard-ui', 'dist');
+  app.use(express.static(staticPath));
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(staticPath, 'index.html'));
+  });
 
   app.use(errorHandler);
 
