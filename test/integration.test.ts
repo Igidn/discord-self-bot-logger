@@ -19,7 +19,6 @@ import { io as SocketIOClient } from 'socket.io-client';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEST_DB = path.join(__dirname, 'test-logs.db');
-const TEST_TOKEN = 'test-auth-token-12345';
 const CONFIG_PATH = path.resolve(process.cwd(), 'config.yaml');
 let originalConfig: string | null = null;
 
@@ -35,7 +34,6 @@ async function apiFetch(path: string, opts: RequestInit = {}): Promise<Response>
   const res = await fetch(`http://127.0.0.1:33333/api/v1${path}`, {
     ...opts,
     headers: {
-      Authorization: `Bearer ${TEST_TOKEN}`,
       'Content-Type': 'application/json',
       ...opts.headers,
     },
@@ -69,7 +67,6 @@ describe('Discord Selfbot Logger Integration', () => {
 dashboard:
   host: 127.0.0.1
   port: 33333
-  authToken: ${TEST_TOKEN}
 database:
   path: ${TEST_DB}
 logging:
@@ -359,7 +356,7 @@ logging:
       assert.ok(body.dashboard);
       // Token is explicitly redacted as '[REDACTED]'
       assert.strictEqual(body.token, '[REDACTED]');
-      assert.strictEqual(body.dashboard.authToken, '[REDACTED]');
+      assert.ok(!('authToken' in body.dashboard));
     });
   });
 
@@ -368,26 +365,10 @@ logging:
   /* ---------------------------------------------------------------- */
 
   describe('Socket.IO', () => {
-    it('should reject connection without auth token', async () => {
+    it('should connect and receive room events', async () => {
       const client = SocketIOClient('http://127.0.0.1:33333', {
         transports: ['websocket'],
         reconnection: false,
-      });
-
-      const error = await new Promise<string>((resolve) => {
-        client.on('connect_error', (err: Error) => resolve(err.message));
-        setTimeout(() => resolve('timeout'), 1500);
-      });
-
-      client.disconnect();
-      assert.ok(error.includes('Unauthorized') || error.includes('timeout'));
-    });
-
-    it('should connect with valid auth token and receive room events', async () => {
-      const client = SocketIOClient('http://127.0.0.1:33333', {
-        transports: ['websocket'],
-        reconnection: false,
-        auth: { token: TEST_TOKEN },
       });
 
       await new Promise<void>((resolve, reject) => {
@@ -433,25 +414,7 @@ logging:
   });
 
   /* ---------------------------------------------------------------- */
-  /*  5. Auth & Security                                                */
-  /* ---------------------------------------------------------------- */
-
-  describe('Authentication', () => {
-    it('should reject requests without Bearer token', async () => {
-      const res = await fetch('http://127.0.0.1:33333/api/v1/health');
-      assert.strictEqual(res.status, 401);
-    });
-
-    it('should reject requests with invalid token', async () => {
-      const res = await fetch('http://127.0.0.1:33333/api/v1/health', {
-        headers: { Authorization: 'Bearer wrong-token' },
-      });
-      assert.strictEqual(res.status, 401);
-    });
-  });
-
-  /* ---------------------------------------------------------------- */
-  /*  6. Filter / Query Logic                                           */
+  /*  5. Filter / Query Logic                                           */
   /* ---------------------------------------------------------------- */
 
   describe('Filter Evaluation', () => {

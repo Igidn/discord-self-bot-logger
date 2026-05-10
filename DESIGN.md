@@ -142,7 +142,6 @@ logging:
 dashboard:
   host: "127.0.0.1"
   port: 3333
-  authToken: "generate-random-string"
   
 # Database
 database:
@@ -375,7 +374,7 @@ END;
 
 ### 8.1 REST API Endpoints (Express)
 
-All endpoints prefixed with `/api/v1`. Authentication via `Authorization: Bearer <token>` header.
+All endpoints prefixed with `/api/v1`. The dashboard is intended for local-only use and is not auth-gated.
 
 ```
 GET  /health                       → { status, uptime, guildsCount, messagesCount }
@@ -731,7 +730,7 @@ Discord does not send message content on delete. If the message is in cache (dis
   - Emits to `guild:<guildId>` for member/voice/presence/audit events.
   - Emits to `global` for admin-level live tail (optional, gated by config).
 - Payloads are **enriched** (user/channel names resolved) before emission so the frontend does not need to refetch.
-- Connection auth: Socket.IO middleware validates `auth.token` against `dashboard.authToken`. Rejects unauthorized connections immediately.
+- Socket.IO connections are open to the local dashboard and rely on local host binding rather than an app-level auth token.
 
 ### 10.6 Rate Limiting & Backpressure
 
@@ -747,11 +746,11 @@ Discord does not send message content on delete. If the message is in cache (dis
 | Concern | Mitigation |
 |---------|------------|
 | Token exposure | Config file is `.gitignore`d; dashboard never exposes it. |
-| Unauthorized dashboard access | Bearer token required; bind to `127.0.0.1` by default. |
+| Unauthorized dashboard access | Bind the dashboard to `127.0.0.1` by default for local-only access. |
 | Data leakage | No cloud sync. All data stays local. |
 | Discord ToS | Selfbots violate ToS. This tool is for **personal data archival only**. User assumes all risk. Document this in README. |
 | DM privacy | `logDirectMessages` defaults to `false`. Must be explicitly enabled. |
-| Sensitive attachments | Stored locally, compressed, and stripped of metadata. Dashboard auth-gated. |
+| Sensitive attachments | Stored locally, compressed, and stripped of metadata. Dashboard remains local-only. |
 
 ---
 

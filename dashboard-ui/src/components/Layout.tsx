@@ -6,7 +6,6 @@ import {
   Activity,
   BarChart3,
   Server,
-  LogOut,
   MonitorCog,
 } from 'lucide-react';
 import { LiveBadge } from './LiveBadge';
@@ -61,19 +60,6 @@ export function Layout() {
             </div>
           )}
         </nav>
-
-        <div className="p-4 border-t border-gray-800">
-          <button
-            onClick={() => {
-              localStorage.removeItem('authToken');
-              window.location.reload();
-            }}
-            className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-100 transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            Sign Out
-          </button>
-        </div>
       </aside>
 
       {/* Main content */}
