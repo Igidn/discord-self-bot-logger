@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Edit3, Reply, Paperclip, Sticker } from 'lucide-react';
+import { formatDateAndTime, type TimestampValue } from '../utils/datetime';
 
 interface MessageAuthor {
   id: string;
@@ -15,9 +16,9 @@ interface MessageCardProps {
     channelId: string;
     authorId: string;
     content?: string | null;
-    createdAt: number;
-    editedAt?: number | null;
-    deletedAt?: number | null;
+    createdAt: TimestampValue;
+    editedAt?: TimestampValue;
+    deletedAt?: TimestampValue;
     replyToId?: string | null;
     stickerLinks?: string | null;
     embedsJson?: string | null;
@@ -28,7 +29,7 @@ interface MessageCardProps {
 }
 
 export function MessageCard({ message, compact, isLive }: MessageCardProps) {
-  const ts = new Date(message.createdAt * 1000);
+  const timestampLabel = formatDateAndTime(message.createdAt);
   const edited = !!message.editedAt;
   const deleted = !!message.deletedAt;
 
@@ -84,7 +85,7 @@ export function MessageCard({ message, compact, isLive }: MessageCardProps) {
               {message.author?.username ?? message.authorId}
             </Link>
             <span className="text-[10px] text-gray-500">
-              {ts.toLocaleDateString()} {ts.toLocaleTimeString()}
+              {timestampLabel}
             </span>
             {edited && (
               <span className="inline-flex items-center gap-0.5 text-[10px] text-discord-yellow">

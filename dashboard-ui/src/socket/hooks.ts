@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useSocketContext } from './context';
+import type { TimestampValue } from '../utils/datetime';
 
 export function useSocket() {
   return useSocketContext().socket;
@@ -11,9 +12,9 @@ export interface LiveMessage {
   channelId: string;
   authorId: string;
   content?: string | null;
-  createdAt: number;
-  editedAt?: number | null;
-  deletedAt?: number | null;
+  createdAt: TimestampValue;
+  editedAt?: TimestampValue;
+  deletedAt?: TimestampValue;
   replyToId?: string | null;
   stickerIds?: string | null;
   stickerLinks?: string | null;

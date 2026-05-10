@@ -7,6 +7,7 @@ import { SearchBar } from '../components/SearchBar';
 import { FilterBuilder } from '../components/FilterBuilder';
 import { MessageCard } from '../components/MessageCard';
 import type { FilterGroup } from '../components/FilterBuilder';
+import { timestampMs, type TimestampValue } from '../utils/datetime';
 
 interface SearchResult {
   id: string;
@@ -14,9 +15,9 @@ interface SearchResult {
   channelId: string;
   authorId: string;
   content?: string | null;
-  createdAt: number;
-  editedAt?: number | null;
-  deletedAt?: number | null;
+  createdAt: TimestampValue;
+  editedAt?: TimestampValue;
+  deletedAt?: TimestampValue;
   replyToId?: string | null;
   stickerIds?: string | null;
   stickerLinks?: string | null;
@@ -92,7 +93,7 @@ export default function Search() {
       for (const lm of liveMatches) {
         map.set(lm.id, lm as SearchResult);
       }
-      return Array.from(map.values()).sort((a, b) => b.createdAt - a.createdAt);
+      return Array.from(map.values()).sort((a, b) => timestampMs(b.createdAt) - timestampMs(a.createdAt));
     });
   }, [liveMatches, liveEnabled]);
 

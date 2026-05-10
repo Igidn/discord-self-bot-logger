@@ -7,6 +7,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import apiClient from '../api/client';
+import { formatDateTime, type TimestampValue } from '../utils/datetime';
 
 type ActivityTab = 'members' | 'voice' | 'presence' | 'audit';
 
@@ -17,7 +18,7 @@ interface MemberEvent {
   eventType: string;
   oldValue?: string | null;
   newValue?: string | null;
-  createdAt: number;
+  createdAt: TimestampValue;
 }
 
 interface VoiceEvent {
@@ -28,7 +29,7 @@ interface VoiceEvent {
   eventType: string;
   oldValue?: string | null;
   newValue?: string | null;
-  createdAt: number;
+  createdAt: TimestampValue;
 }
 
 interface PresenceEvent {
@@ -37,7 +38,7 @@ interface PresenceEvent {
   userId: string;
   status?: string | null;
   clientStatus?: string | null;
-  updatedAt: number;
+  updatedAt: TimestampValue;
 }
 
 interface AuditEvent {
@@ -48,7 +49,7 @@ interface AuditEvent {
   targetType?: string | null;
   userId?: string | null;
   reason?: string | null;
-  createdAt: number;
+  createdAt: TimestampValue;
 }
 
 export default function Activity() {
@@ -147,7 +148,7 @@ function MemberTable({ data }: { data: MemberEvent[] }) {
               <td className="px-4 py-2 text-gray-400">{row.userId}</td>
               <td className="px-4 py-2 text-gray-400">{row.guildId}</td>
               <td className="px-4 py-2 text-gray-500 text-xs">
-                {new Date(row.createdAt * 1000).toLocaleString()}
+                {formatDateTime(row.createdAt)}
               </td>
             </tr>
           ))}
@@ -183,7 +184,7 @@ function VoiceTable({ data }: { data: VoiceEvent[] }) {
               <td className="px-4 py-2 text-gray-400">{row.userId}</td>
               <td className="px-4 py-2 text-gray-400">{row.channelId ?? '-'}</td>
               <td className="px-4 py-2 text-gray-500 text-xs">
-                {new Date(row.createdAt * 1000).toLocaleString()}
+                {formatDateTime(row.createdAt)}
               </td>
             </tr>
           ))}
@@ -222,7 +223,7 @@ function PresenceTable({ data }: { data: PresenceEvent[] }) {
               </td>
               <td className="px-4 py-2 text-gray-400 text-xs">{row.clientStatus ?? '-'}</td>
               <td className="px-4 py-2 text-gray-500 text-xs">
-                {new Date(row.updatedAt * 1000).toLocaleString()}
+                {formatDateTime(row.updatedAt)}
               </td>
             </tr>
           ))}
@@ -258,7 +259,7 @@ function AuditTable({ data }: { data: AuditEvent[] }) {
               <td className="px-4 py-2 text-gray-400">{row.targetId ?? '-'}</td>
               <td className="px-4 py-2 text-gray-400">{row.userId ?? '-'}</td>
               <td className="px-4 py-2 text-gray-500 text-xs">
-                {new Date(row.createdAt * 1000).toLocaleString()}
+                {formatDateTime(row.createdAt)}
               </td>
             </tr>
           ))}

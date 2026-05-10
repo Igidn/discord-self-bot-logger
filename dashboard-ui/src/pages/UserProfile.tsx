@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import apiClient from '../api/client';
 import { MessageCard } from '../components/MessageCard';
+import { formatDate, type TimestampValue } from '../utils/datetime';
 
 interface UserProfileData {
   id: string;
@@ -16,14 +17,14 @@ interface UserProfileData {
   discriminator?: string | null;
   avatarUrl?: string | null;
   bot?: number;
-  firstSeenAt?: number;
+  firstSeenAt?: TimestampValue;
 }
 
 interface UserStats {
   messageCount: number;
   guildCount: number;
-  firstMessageAt?: number;
-  lastMessageAt?: number;
+  firstMessageAt?: TimestampValue;
+  lastMessageAt?: TimestampValue;
 }
 
 interface UserMessage {
@@ -32,9 +33,9 @@ interface UserMessage {
   channelId: string;
   authorId: string;
   content?: string | null;
-  createdAt: number;
-  editedAt?: number | null;
-  deletedAt?: number | null;
+  createdAt: TimestampValue;
+  editedAt?: TimestampValue;
+  deletedAt?: TimestampValue;
   author?: {
     id: string;
     username: string;
@@ -126,7 +127,7 @@ export default function UserProfile() {
           <div className="text-xs text-gray-400 mt-1">ID: {user.id}</div>
           {user.firstSeenAt && (
             <div className="text-xs text-gray-500 mt-0.5">
-              First seen {new Date(user.firstSeenAt * 1000).toLocaleDateString()}
+              First seen {formatDate(user.firstSeenAt)}
             </div>
           )}
         </div>
@@ -136,8 +137,8 @@ export default function UserProfile() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <StatCard icon={MessageSquare} label="Messages" value={stats?.messageCount ?? 0} color="text-discord-green" />
         <StatCard icon={Hash} label="Guilds" value={stats?.guildCount ?? 0} color="text-discord-blurple" />
-        <StatCard icon={Calendar} label="First Msg" value={stats?.firstMessageAt ? new Date(stats.firstMessageAt * 1000).toLocaleDateString() : '-'} color="text-discord-yellow" />
-        <StatCard icon={Activity} label="Last Msg" value={stats?.lastMessageAt ? new Date(stats.lastMessageAt * 1000).toLocaleDateString() : '-'} color="text-discord-fuchsia" />
+        <StatCard icon={Calendar} label="First Msg" value={formatDate(stats?.firstMessageAt)} color="text-discord-yellow" />
+        <StatCard icon={Activity} label="Last Msg" value={formatDate(stats?.lastMessageAt)} color="text-discord-fuchsia" />
       </div>
 
       {/* Tabs */}
