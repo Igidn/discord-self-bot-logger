@@ -26,8 +26,9 @@ router.get('/:id/preview', async (req, res, next) => {
       const config = loadConfig();
       const attachmentsDir = path.resolve(process.cwd(), config.logging.attachments.path);
       const resolvedPath = path.resolve(attachment.localPath);
+      const relative = path.relative(attachmentsDir, resolvedPath);
 
-      if (!resolvedPath.startsWith(attachmentsDir + path.sep) && resolvedPath !== attachmentsDir) {
+      if (relative.startsWith('..') || path.isAbsolute(relative)) {
         res.status(403).json({ error: 'Access denied' });
         return;
       }
