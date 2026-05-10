@@ -1,5 +1,8 @@
 import { Link } from 'react-router-dom';
 import { Edit3, Reply, Paperclip, Sticker } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import { formatDateAndTime, type TimestampValue } from '../utils/datetime';
 
 interface MessageAuthor {
@@ -53,62 +56,56 @@ export function MessageCard({ message, compact, isLive }: MessageCardProps) {
 
   return (
     <div
-      className={`group rounded-lg border transition-all ${
-        isLive ? 'animate-slide-up border-discord-blurple/30 bg-discord-blurple/5' : 'border-transparent hover:bg-gray-850 bg-gray-900'
-      } ${deleted ? 'opacity-50' : ''}`}
+      className={cn(
+        'group rounded-xl border bg-card/70 transition-colors hover:bg-accent/20',
+        isLive && 'animate-slide-up border-primary/30 bg-primary/5',
+        deleted && 'opacity-60',
+      )}
     >
-      <div className={`flex gap-3 ${compact ? 'p-2' : 'p-3'}`}>
+      <div className={cn('flex gap-3', compact ? 'p-3' : 'p-4')}>
         <Link to={`/users/${message.authorId}`} className="shrink-0">
-          {message.author?.avatarUrl ? (
-            <img
-              src={message.author.avatarUrl}
-              alt={message.author.username}
-              className={`rounded-full object-cover ${compact ? 'w-8 h-8' : 'w-10 h-10'}`}
-            />
-          ) : (
-            <div
-              className={`rounded-full bg-discord-blurple flex items-center justify-center text-white font-bold ${
-                compact ? 'w-8 h-8 text-xs' : 'w-10 h-10 text-sm'
-              }`}
-            >
+          <Avatar className={compact ? 'size-8' : 'size-10'}>
+            <AvatarImage src={message.author?.avatarUrl ?? undefined} alt={message.author?.username} />
+            <AvatarFallback className="bg-primary/10 text-primary">
               {(message.author?.username ?? '?').charAt(0).toUpperCase()}
-            </div>
-          )}
+            </AvatarFallback>
+          </Avatar>
         </Link>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <Link
               to={`/users/${message.authorId}`}
-              className="text-sm font-semibold text-gray-200 hover:underline"
+              className="text-sm font-semibold text-foreground hover:underline"
             >
               {message.author?.username ?? message.authorId}
             </Link>
-            <span className="text-[10px] text-gray-500">
+            <span className="text-[10px] text-muted-foreground">
               {timestampLabel}
             </span>
             {edited && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] text-discord-yellow">
-                <Edit3 className="w-3 h-3" />
+              <Badge variant="secondary" className="gap-1 rounded-md px-1.5 py-0 text-[10px]">
+                <Edit3 className="size-3" />
                 edited
-              </span>
+              </Badge>
             )}
             {deleted && (
-              <span className="text-[10px] text-discord-red font-medium">deleted</span>
+              <Badge variant="destructive" className="rounded-md px-1.5 py-0 text-[10px]">
+                deleted
+              </Badge>
             )}
             {message.replyToId && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] text-gray-400">
-                <Reply className="w-3 h-3" />
+              <Badge variant="outline" className="gap-1 rounded-md px-1.5 py-0 text-[10px]">
+                <Reply className="size-3" />
                 reply
-              </span>
+              </Badge>
             )}
           </div>
 
-          <div className="mt-1 text-sm text-gray-100 whitespace-pre-wrap break-words">
-            {message.content ?? <span className="text-gray-500 italic">No content</span>}
+          <div className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">
+            {message.content ?? <span className="italic text-muted-foreground">No content</span>}
           </div>
 
-          {/* Stickers */}
           {stickerLinks.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-2">
               {stickerLinks.map((link, i) => (
@@ -117,19 +114,18 @@ export function MessageCard({ message, compact, isLive }: MessageCardProps) {
                   href={link.match(/\(([^)]+)\)/)?.[1] ?? '#'}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-xs text-discord-blurple hover:underline"
+                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                 >
-                  <Sticker className="w-3 h-3" />
+                  <Sticker className="size-3" />
                   {link.match(/\[([^\]]+)\]/)?.[1] ?? 'Sticker'}
                 </a>
               ))}
             </div>
           )}
 
-          {/* Embeds indicator */}
           {embeds.length > 0 && (
-            <div className="mt-2 inline-flex items-center gap-1 text-[10px] text-gray-500 bg-gray-950 px-2 py-1 rounded">
-              <Paperclip className="w-3 h-3" />
+            <div className="mt-2 inline-flex items-center gap-1 rounded-md border bg-muted/40 px-2 py-1 text-[10px] text-muted-foreground">
+              <Paperclip className="size-3" />
               {embeds.length} embed{embeds.length > 1 ? 's' : ''}
             </div>
           )}
@@ -138,7 +134,7 @@ export function MessageCard({ message, compact, isLive }: MessageCardProps) {
             <div className="mt-2 flex items-center gap-3">
               <Link
                 to={`/messages/${message.id}`}
-                className="text-[10px] text-gray-500 hover:text-discord-blurple transition-colors"
+                className="text-[10px] text-muted-foreground transition-colors hover:text-primary"
               >
                 View detail
               </Link>

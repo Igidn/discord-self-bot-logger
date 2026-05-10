@@ -15,24 +15,22 @@ import { BarChart3, Calendar, TrendingUp } from 'lucide-react';
 import apiClient from '../api/client';
 
 interface DailyCount {
-  date: string;
+  day: string;
   count: number;
 }
 
 interface TopChannel {
-  id: string;
-  name: string;
+  channelId: string;
   count: number;
 }
 
 interface TopUser {
-  id: string;
-  username: string;
+  userId: string;
   count: number;
 }
 
 interface StatsData {
-  daily: DailyCount[];
+  dailyCounts: DailyCount[];
   topChannels: TopChannel[];
   topUsers: TopUser[];
 }
@@ -43,6 +41,21 @@ export default function Stats() {
   const [range, setRange] = useState<'7d' | '30d' | '90d'>('30d');
   const [stats, setStats] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const dailyData = (stats?.dailyCounts ?? []).map((item) => ({
+    date: item.day,
+    count: item.count,
+  }));
+
+  const topChannelData = (stats?.topChannels ?? []).map((item) => ({
+    label: `#${item.channelId.slice(-6)}`,
+    count: item.count,
+  }));
+
+  const topUserData = (stats?.topUsers ?? []).map((item) => ({
+    label: item.userId.slice(-6),
+    count: item.count,
+  }));
 
   useEffect(() => {
     async function fetchStats() {
@@ -97,7 +110,7 @@ export default function Stats() {
             </div>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats.daily}>
+                <BarChart data={dailyData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                   <XAxis dataKey="date" stroke="#9ca3af" fontSize={12} />
                   <YAxis stroke="#9ca3af" fontSize={12} />
@@ -123,15 +136,15 @@ export default function Stats() {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={stats.topChannels}
+                      data={topChannelData}
                       dataKey="count"
-                      nameKey="name"
+                      nameKey="label"
                       cx="50%"
                       cy="50%"
                       outerRadius={80}
                       label
                     >
-                      {stats.topChannels.map((_, index) => (
+                      {topChannelData.map((_, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
@@ -155,15 +168,15 @@ export default function Stats() {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={stats.topUsers}
+                      data={topUserData}
                       dataKey="count"
-                      nameKey="username"
+                      nameKey="label"
                       cx="50%"
                       cy="50%"
                       outerRadius={80}
                       label
                     >
-                      {stats.topUsers.map((_, index) => (
+                      {topUserData.map((_, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
