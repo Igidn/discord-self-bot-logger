@@ -1,9 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 
-const token = localStorage.getItem('authToken') || '';
-
 export const socket: Socket = io('/', {
-  auth: { token },
   reconnection: true,
   reconnectionAttempts: Infinity,
   reconnectionDelay: 1000,

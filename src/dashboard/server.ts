@@ -4,7 +4,6 @@ import type { Server as HttpServer } from 'node:http';
 import path from 'node:path';
 import { logger } from '@/utils/logger.js';
 import { errorHandler } from '@/dashboard/middleware/errorHandler.js';
-import { restAuth } from '@/dashboard/middleware/auth.js';
 import { initSocketIO } from '@/dashboard/socket/index.js';
 
 import healthRouter from '@/dashboard/routes/health.js';
@@ -23,8 +22,6 @@ export function startDashboardServer(host: string, port: number): HttpServer {
   initSocketIO(server);
 
   app.use(express.json({ limit: '1mb' }));
-
-  app.use('/api/v1', restAuth);
   app.use('/api/v1/health', healthRouter);
   app.use('/api/v1/config', configRouter);
   app.use('/api/v1/messages', messagesRouter);

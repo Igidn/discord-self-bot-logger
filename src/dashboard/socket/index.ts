@@ -1,6 +1,5 @@
 import type { Server as HTTPServer } from 'node:http';
 import { Server as SocketIOServer } from 'socket.io';
-import { socketAuth } from '@/dashboard/middleware/auth.js';
 import { logger } from '@/utils/logger.js';
 import { registerSocketHandlers } from '@/dashboard/socket/handlers.js';
 
@@ -11,8 +10,6 @@ export function initSocketIO(server: HTTPServer): SocketIOServer {
     cors: { origin: process.env.NODE_ENV === 'production' ? false : '*' },
     transports: ['websocket', 'polling'],
   });
-
-  io.use(socketAuth);
 
   io.on('connection', (socket) => {
     logger.info({ socketId: socket.id }, 'Socket connected');

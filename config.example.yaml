@@ -46,8 +46,6 @@ logging:
 dashboard:
   host: 127.0.0.1
   port: 3333
-  # Auth token — auto-generated if omitted
-  authToken: null
 
 database:
   path: ./storage/logs.db

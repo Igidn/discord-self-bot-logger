@@ -9,10 +9,6 @@ router.get('/', (_req, res) => {
   const safe = {
     ...cfg,
     token: '[REDACTED]',
-    dashboard: {
-      ...cfg.dashboard,
-      authToken: '[REDACTED]',
-    },
   };
   res.json(safe);
 });

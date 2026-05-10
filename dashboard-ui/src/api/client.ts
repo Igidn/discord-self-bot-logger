@@ -1,5 +1,3 @@
-const token = localStorage.getItem('authToken') || '';
-
 interface RequestConfig extends RequestInit {
   params?: Record<string, string>;
 }
@@ -34,14 +32,10 @@ class FetchClient {
       });
     }
 
-    const t = localStorage.getItem('authToken') || '';
     const headers: Record<string, string> = {
       ...this.defaultHeaders,
       ...(config.headers as Record<string, string> || {}),
     };
-    if (t) {
-      headers['Authorization'] = `Bearer ${t}`;
-    }
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
@@ -59,9 +53,7 @@ class FetchClient {
         error.response = response;
         error.status = response.status;
 
-        if (response.status === 401) {
-          console.error('Authentication failed. Please check your auth token.');
-        } else if (response.status === 403) {
+        if (response.status === 403) {
           console.error('Access denied.');
         } else if (response.status >= 500) {
           console.error('Server error. Please try again later.');
@@ -118,7 +110,6 @@ export const apiClient = new FetchClient({
   baseURL: '/api/v1',
   headers: {
     'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   },
   timeout: 30000,
 });

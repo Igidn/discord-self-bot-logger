@@ -4,8 +4,6 @@ import {
   Download,
   Trash2,
   AlertTriangle,
-  Eye,
-  EyeOff,
   RotateCcw,
 } from 'lucide-react';
 import apiClient from '../api/client';
@@ -20,7 +18,6 @@ interface ConfigData {
   dashboard?: {
     host?: string;
     port?: number;
-    authToken?: string;
   };
   database?: {
     path?: string;
@@ -31,7 +28,6 @@ interface ConfigData {
 export default function Settings() {
   const [config, setConfig] = useState<ConfigData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showToken, setShowToken] = useState(false);
   const [purgeConfirm, setPurgeConfirm] = useState(false);
   const [exportFormat, setExportFormat] = useState<'jsonl' | 'csv' | 'html'>('jsonl');
   const [exportJobId, setExportJobId] = useState<string | null>(null);
@@ -97,20 +93,6 @@ export default function Settings() {
         <div className="p-4 space-y-4">
           <ConfigRow label="Dashboard Host" value={config?.dashboard?.host ?? '127.0.0.1'} />
           <ConfigRow label="Dashboard Port" value={String(config?.dashboard?.port ?? 3333)} />
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-400">Auth Token</span>
-            <div className="flex items-center gap-2">
-              <code className="text-sm bg-gray-950 px-2 py-1 rounded border border-gray-800">
-                {showToken ? config?.dashboard?.authToken ?? '***' : '••••••••'}
-              </code>
-              <button
-                onClick={() => setShowToken((v) => !v)}
-                className="p-1.5 rounded-md bg-gray-800 hover:bg-gray-700 transition-colors"
-              >
-                {showToken ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              </button>
-            </div>
-          </div>
           <ConfigRow label="Database Path" value={config?.database?.path ?? './storage/logs.db'} />
           <ConfigRow label="WAL Mode" value={config?.database?.wal ? 'Enabled' : 'Disabled'} />
           <ConfigRow
