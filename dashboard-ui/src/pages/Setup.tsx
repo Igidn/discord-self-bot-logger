@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Save, MonitorCog } from 'lucide-react';
+import { Save, CheckCircle2 } from 'lucide-react';
 import apiClient from '../api/client';
 import { GuildPicker } from '../components/GuildPicker';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface GuildItem {
   id: string;
@@ -61,35 +63,43 @@ export default function Setup() {
   };
 
   return (
-    <div className="p-6 space-y-6 overflow-y-auto">
-      <div className="flex items-center justify-between">
+    <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-6">
+      {/* Page header */}
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <MonitorCog className="w-6 h-6 text-discord-blurple" />
-            Guild Setup
-          </h1>
-          <p className="text-sm text-gray-400 mt-1">
+          <h1 className="text-2xl font-bold tracking-tight">Guild Setup</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             Select which guilds to monitor. Only selected guilds will be logged.
           </p>
         </div>
-        <button
+        <Button
           onClick={handleSave}
           disabled={saving}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-discord-blurple hover:bg-discord-blurple/90 disabled:opacity-50 rounded-lg text-sm font-medium transition-colors"
+          size="sm"
+          className="gap-2 shrink-0"
         >
-          <Save className="w-4 h-4" />
+          <Save className="size-4" />
           {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Selection'}
-        </button>
+        </Button>
       </div>
 
+      {/* Success banner */}
       {saved && (
-        <div className="bg-discord-green/10 border border-discord-green/30 rounded-lg p-3 text-sm text-discord-green">
-          Configuration saved. Redirecting to overview...
+        <div className="flex items-center gap-2 rounded-md bg-emerald-500/10 border border-emerald-500/20 px-4 py-3">
+          <CheckCircle2 className="size-4 shrink-0 text-emerald-500" />
+          <p className="text-sm text-emerald-600 dark:text-emerald-400">
+            Configuration saved. Redirecting to overview...
+          </p>
         </div>
       )}
 
+      {/* Guild picker grid */}
       {loading ? (
-        <div className="text-sm text-gray-500">Loading guilds...</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-36 rounded-xl" />
+          ))}
+        </div>
       ) : (
         <GuildPicker guilds={guilds} selected={selected} onToggle={toggleGuild} />
       )}
