@@ -18,20 +18,22 @@ const overviewQuery = z.object({
 router.get('/overview', async (req, res, next) => {
   try {
     const query = overviewQuery.parse(req.query);
-    const days = query.range
-      ? Math.min(Math.max(parseInt(query.range, 10) || 30, 1), 365)
+    const parsedRange = query.range !== undefined ? parseInt(query.range, 10) : NaN;
+    const days = !Number.isNaN(parsedRange)
+      ? Math.min(Math.max(parsedRange, 1), 365)
       : query.days;
 
-    const [daily, topChannels, topUsers] = await Promise.all([
+    const [dailyCounts, topChannels, topUsers] = await Promise.all([
       Promise.resolve(getDailyMessageCounts(days)),
       Promise.resolve(getTopChannels(days)),
       Promise.resolve(getTopUsers(days)),
     ]);
 
     res.json({
-      daily,
+      dailyCounts,
       topChannels,
       topUsers,
+      periodDays: days,
     });
   } catch (err) {
     if (err instanceof z.ZodError) {

@@ -94,7 +94,8 @@ export function evaluateFilter(
   ]);
 
   if (booleanFlagFields.has(field) && op === 'eq') {
-    return evaluateFilter(message, { field, op: field as FilterOperator });
+    const isTrue = value !== false;
+    return evaluateFilter(message, { field, op: field as FilterOperator, value: isTrue });
   }
 
   const messageValue = message[field];

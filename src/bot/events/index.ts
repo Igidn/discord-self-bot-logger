@@ -36,7 +36,13 @@ import {
 export function registerEvents(client: Client, db: any) {
   if (config.logging.events.messages) {
     client.on('messageCreate', (...args) => handleMessageCreate(client, db, ...args));
+  }
+
+  if (config.logging.events.messageEdits) {
     client.on('messageUpdate', (...args) => handleMessageUpdate(client, db, ...args));
+  }
+
+  if (config.logging.events.messageDeletes) {
     client.on('messageDelete', (...args) => handleMessageDelete(client, db, ...args));
     client.on('messageDeleteBulk', (...args) => handleMessageDeleteBulk(client, db, ...args));
   }

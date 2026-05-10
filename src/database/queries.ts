@@ -257,6 +257,25 @@ function buildClauseSQL(clause: FilterClause): SQL | undefined {
     return undefined;
   }
 
+  if (field === 'messageType') {
+    const types = Array.isArray(value) ? value : [value];
+    const conditions: SQL[] = [];
+
+    for (const type of types) {
+      if (type === 'reply') {
+        conditions.push(isNotNull(schema.messages.replyToId));
+      } else if (type === 'default') {
+        conditions.push(isNull(schema.messages.replyToId));
+      }
+      // 'pin' and 'system' are not stored in the schema; they are silently ignored
+    }
+
+    if (conditions.length === 0) return undefined;
+    if (op === 'eq') return conditions[0];
+    if (op === 'in') return conditions.length === 1 ? conditions[0] : or(...conditions);
+    return undefined;
+  }
+
   let col;
   switch (field) {
     case 'guildId':
