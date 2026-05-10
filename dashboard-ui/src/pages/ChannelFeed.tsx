@@ -5,6 +5,7 @@ import apiClient from '../api/client';
 import { useChannelSocket } from '../socket/hooks';
 import { MessageCard } from '../components/MessageCard';
 import { TypingIndicator } from '../components/TypingIndicator';
+import { timestampMs, type TimestampValue } from '../utils/datetime';
 
 interface FeedMessage {
   id: string;
@@ -12,9 +13,9 @@ interface FeedMessage {
   channelId: string;
   authorId: string;
   content?: string | null;
-  createdAt: number;
-  editedAt?: number | null;
-  deletedAt?: number | null;
+  createdAt: TimestampValue;
+  editedAt?: TimestampValue;
+  deletedAt?: TimestampValue;
   replyToId?: string | null;
   stickerIds?: string | null;
   stickerLinks?: string | null;
@@ -81,7 +82,7 @@ export default function ChannelFeed() {
       for (const lm of liveMessages) {
         map.set(lm.id, lm);
       }
-      return Array.from(map.values()).sort((a, b) => b.createdAt - a.createdAt);
+      return Array.from(map.values()).sort((a, b) => timestampMs(b.createdAt) - timestampMs(a.createdAt));
     });
   }, [liveMessages]);
 

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import apiClient from '../api/client';
 import { MessageCard } from '../components/MessageCard';
+import { formatDateTime, type TimestampValue } from '../utils/datetime';
 
 interface Attachment {
   id: string;
@@ -35,7 +36,7 @@ interface Edit {
   messageId: string;
   oldContent?: string | null;
   newContent?: string | null;
-  editedAt: number;
+  editedAt: TimestampValue;
 }
 
 interface MessageDetailData {
@@ -44,9 +45,9 @@ interface MessageDetailData {
   channelId: string;
   authorId: string;
   content?: string | null;
-  createdAt: number;
-  editedAt?: number | null;
-  deletedAt?: number | null;
+  createdAt: TimestampValue;
+  editedAt?: TimestampValue;
+  deletedAt?: TimestampValue;
   replyToId?: string | null;
   stickerIds?: string | null;
   stickerLinks?: string | null;
@@ -192,7 +193,7 @@ export default function MessageDetail() {
             {edits.map((edit) => (
               <div key={edit.id} className="p-4 space-y-2">
                 <div className="text-xs text-gray-500">
-                  {new Date(edit.editedAt * 1000).toLocaleString()}
+                  {formatDateTime(edit.editedAt)}
                 </div>
                 {edit.oldContent !== null && (
                   <div className="text-sm text-gray-400 line-through">{edit.oldContent}</div>
@@ -210,7 +211,7 @@ export default function MessageDetail() {
           <div>
             <div className="font-medium">This message was deleted</div>
             <div className="text-xs">
-              Deleted at {new Date(message.deletedAt * 1000).toLocaleString()}
+              Deleted at {formatDateTime(message.deletedAt)}
             </div>
           </div>
         </div>
