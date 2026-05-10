@@ -25,7 +25,16 @@ export function startRetentionPurger(): void {
   setInterval(() => runPurge(retentionDays), DAY_MS);
 }
 
-function runPurge(retentionDays: number): void {
+export interface PurgeSummary {
+  messages: number;
+  edits: number;
+  deletes: number;
+  reactions: number;
+  attachments: number;
+  filesRemoved: number;
+}
+
+export function runPurge(retentionDays: number): PurgeSummary {
   const cutoff = Math.floor((Date.now() - retentionDays * DAY_MS) / 1000);
   logger.info({ cutoff: new Date(cutoff * 1000).toISOString() }, 'Running retention purge');
 
@@ -67,22 +76,24 @@ function runPurge(retentionDays: number): void {
       }
     }
 
-    logger.info(
-      {
-        messagesDeleted: messagesResult.changes,
-        editsDeleted: editsResult.changes,
-        deletesDeleted: deletesResult.changes,
-        reactionsDeleted: reactionsResult.changes,
-        attachmentsDeleted: attachmentsResult.changes,
-        filesRemoved,
-      },
-      'Retention purge completed'
-    );
+    const summary: PurgeSummary = {
+      messages: messagesResult.changes,
+      edits: editsResult.changes,
+      deletes: deletesResult.changes,
+      reactions: reactionsResult.changes,
+      attachments: attachmentsResult.changes,
+      filesRemoved,
+    };
+
+    logger.info(summary, 'Retention purge completed');
 
     cleanupOrphans();
     maybeVacuum();
+
+    return summary;
   } catch (err) {
     logger.error({ err }, 'Retention purge failed');
+    throw err;
   }
 }
 

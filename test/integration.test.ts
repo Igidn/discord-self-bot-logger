@@ -264,12 +264,11 @@ logging:
       const res = await apiFetch('/stats/overview');
       assert.strictEqual(res.status, 200);
       const body = await res.json();
-      // Note: overview stats returns dailyCounts, topChannels, topUsers, periodDays
+      // Note: overview stats returns daily, topChannels, topUsers
       // (totalMessages/totalGuilds/totalUsers are guild-specific per current implementation)
-      assert.ok(Array.isArray(body.dailyCounts));
+      assert.ok(Array.isArray(body.daily));
       assert.ok(Array.isArray(body.topChannels));
       assert.ok(Array.isArray(body.topUsers));
-      assert.ok(typeof body.periodDays === 'number');
     });
 
     it('should return guild-specific stats', async () => {

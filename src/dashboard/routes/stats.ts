@@ -11,25 +11,27 @@ import { logger } from '@/utils/logger.js';
 const router = Router();
 
 const overviewQuery = z.object({
+  range: z.string().optional(),
   days: z.coerce.number().min(1).max(365).default(30),
 });
 
 router.get('/overview', async (req, res, next) => {
   try {
     const query = overviewQuery.parse(req.query);
-    const days = query.days;
+    const days = query.range
+      ? Math.min(Math.max(parseInt(query.range, 10) || 30, 1), 365)
+      : query.days;
 
-    const [dailyCounts, topChannels, topUsers] = await Promise.all([
+    const [daily, topChannels, topUsers] = await Promise.all([
       Promise.resolve(getDailyMessageCounts(days)),
       Promise.resolve(getTopChannels(days)),
       Promise.resolve(getTopUsers(days)),
     ]);
 
     res.json({
-      dailyCounts,
+      daily,
       topChannels,
       topUsers,
-      periodDays: days,
     });
   } catch (err) {
     if (err instanceof z.ZodError) {

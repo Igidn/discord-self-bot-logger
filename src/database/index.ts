@@ -17,8 +17,9 @@ ensureDir(path.dirname(dbPath));
 
 const sqlite: Database.Database = new Database(dbPath);
 
-// Enable WAL mode for better concurrency and performance
-sqlite.pragma('journal_mode = WAL');
+if (config.database.wal) {
+  sqlite.pragma('journal_mode = WAL');
+}
 sqlite.pragma('foreign_keys = ON');
 
 export const db = drizzle(sqlite, { schema });
@@ -41,7 +42,7 @@ try {
   throw err;
 }
 
-logger.info(`Database connected at ${dbPath} (WAL mode)`);
+logger.info(`Database connected at ${dbPath}${config.database.wal ? ' (WAL mode)' : ''}`);
 
 export function initDatabase(): void {
   // Database is already initialized at module load time.
