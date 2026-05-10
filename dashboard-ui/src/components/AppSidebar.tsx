@@ -5,7 +5,6 @@ import {
   ChevronDown,
   LayoutDashboard,
   MonitorCog,
-  Search,
   Server,
   Settings as SettingsIcon,
   Zap,
@@ -39,7 +38,6 @@ const monitorNav = [
 ];
 
 const exploreNav = [
-  { to: '/search', icon: Search, label: 'Search' },
   { to: '/setup', icon: MonitorCog, label: 'Setup' },
 ];
 

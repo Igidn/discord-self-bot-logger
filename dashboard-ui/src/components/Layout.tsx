@@ -1,5 +1,4 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { Search } from 'lucide-react';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -8,11 +7,11 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
 import { LiveBadge } from './LiveBadge';
+import { TopSearchBar } from './TopSearchBar';
 
 export function Layout() {
   const location = useLocation();
@@ -45,12 +44,7 @@ export function Layout() {
             </Breadcrumb>
           </div>
           <div className="flex items-center gap-2 px-4">
-            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-sm font-normal" asChild>
-              <Link to="/search">
-                <Search className="size-3.5" />
-                <span className="hidden sm:inline-flex">Search messages…</span>
-              </Link>
-            </Button>
+            <TopSearchBar />
             <LiveBadge />
           </div>
         </header>
@@ -133,7 +127,7 @@ function getPageMeta(pathname: string): {
     return {
       title: 'Message Detail',
       description: 'Inspect metadata, edits, and related author information.',
-      parent: { label: 'Search', to: '/search' },
+       parent: { label: 'Results', to: '/search' },
     };
   }
 
@@ -141,7 +135,7 @@ function getPageMeta(pathname: string): {
     return {
       title: 'User Profile',
       description: 'View message history and activity for a tracked user.',
-      parent: { label: 'Search', to: '/search' },
+       parent: { label: 'Results', to: '/search' },
     };
   }
 
