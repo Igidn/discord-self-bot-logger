@@ -11,13 +11,17 @@ import { logger } from '@/utils/logger.js';
 const router = Router();
 
 const overviewQuery = z.object({
+  range: z.string().optional(),
   days: z.coerce.number().min(1).max(365).default(30),
 });
 
 router.get('/overview', async (req, res, next) => {
   try {
     const query = overviewQuery.parse(req.query);
-    const days = query.days;
+    const parsedRange = query.range !== undefined ? parseInt(query.range, 10) : NaN;
+    const days = !Number.isNaN(parsedRange)
+      ? Math.min(Math.max(parsedRange, 1), 365)
+      : query.days;
 
     const [dailyCounts, topChannels, topUsers] = await Promise.all([
       Promise.resolve(getDailyMessageCounts(days)),

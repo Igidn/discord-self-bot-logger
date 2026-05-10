@@ -1,11 +1,14 @@
 import { Router } from 'express';
 import z from 'zod';
+import { eq } from 'drizzle-orm';
 import {
   getMessages,
   getMessageById,
   getMessageEdits,
   getMessageReactions,
 } from '@/database/queries.js';
+import { db } from '@/database/index.js';
+import { attachments } from '@/database/schema.js';
 import { logger } from '@/utils/logger.js';
 
 const router = Router();
@@ -72,6 +75,20 @@ router.get('/:id/reactions', async (req, res, next) => {
     const reactions = await getMessageReactions(req.params.id);
     res.json(reactions);
   } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/:id/attachments', async (req, res, next) => {
+  try {
+    const rows = db
+      .select()
+      .from(attachments)
+      .where(eq(attachments.messageId, req.params.id))
+      .all();
+    res.json(rows);
+  } catch (err) {
+    logger.error(err, 'Failed to fetch attachments');
     next(err);
   }
 });

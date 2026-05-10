@@ -14,6 +14,9 @@ import activityRouter from '@/dashboard/routes/activity.js';
 import usersRouter from '@/dashboard/routes/users.js';
 import statsRouter from '@/dashboard/routes/stats.js';
 import exportRouter from '@/dashboard/routes/export.js';
+import guildsRouter from '@/dashboard/routes/guilds.js';
+import attachmentsRouter from '@/dashboard/routes/attachments.js';
+import purgeRouter from '@/dashboard/routes/purge.js';
 
 export function startDashboardServer(host: string, port: number): HttpServer {
   const app = express();
@@ -30,6 +33,9 @@ export function startDashboardServer(host: string, port: number): HttpServer {
   app.use('/api/v1/users', usersRouter);
   app.use('/api/v1/stats', statsRouter);
   app.use('/api/v1/export', exportRouter);
+  app.use('/api/v1/guilds', guildsRouter);
+  app.use('/api/v1/attachments', attachmentsRouter);
+  app.use('/api/v1/purge', purgeRouter);
 
   const staticPath = path.resolve(process.cwd(), 'dashboard-ui', 'dist');
   app.use(express.static(staticPath));

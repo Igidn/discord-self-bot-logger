@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import z from 'zod';
 import { searchMessages, suggestField } from '@/database/queries.js';
-import { filterSchema } from '@/shared/filters.js';
+import { filterSchema, type Filter } from '@/shared/filters.js';
 import { logger } from '@/utils/logger.js';
 
 const router = Router();
@@ -23,7 +23,7 @@ const suggestQuerySchema = z.object({
 router.get('/', async (req, res, next) => {
   try {
     const query = searchQuerySchema.parse(req.query);
-    let parsedFilters: unknown = undefined;
+    let parsedFilters: Filter | undefined = undefined;
 
     if (query.filters) {
       try {
@@ -37,7 +37,7 @@ router.get('/', async (req, res, next) => {
 
     const result = searchMessages(
       query.q ?? '',
-      parsedFilters as import('@/database/queries.js').MessageFilters,
+      parsedFilters,
       { limit: query.limit, cursor: query.cursor }
     );
 

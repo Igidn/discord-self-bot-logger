@@ -265,11 +265,10 @@ logging:
       assert.strictEqual(res.status, 200);
       const body = await res.json();
       // Note: overview stats returns dailyCounts, topChannels, topUsers, periodDays
-      // (totalMessages/totalGuilds/totalUsers are guild-specific per current implementation)
       assert.ok(Array.isArray(body.dailyCounts));
       assert.ok(Array.isArray(body.topChannels));
       assert.ok(Array.isArray(body.topUsers));
-      assert.ok(typeof body.periodDays === 'number');
+      assert.strictEqual(body.periodDays, 30);
     });
 
     it('should return guild-specific stats', async () => {

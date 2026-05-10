@@ -8,15 +8,18 @@ import {
   sql,
   count,
   inArray,
+  notInArray,
   isNull,
   isNotNull,
   gt,
   lt,
+  lte,
   ne,
   type SQL,
 } from 'drizzle-orm';
 import { db } from './index.js';
 import * as schema from './schema.js';
+import type { Filter, FilterClause } from '@/shared/filters.js';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -199,16 +202,194 @@ export function getMessageById(id: string): MessageDetail | null {
 }
 
 /* ------------------------------------------------------------------ */
+/*  buildFilterSQL                                                     */
+/* ------------------------------------------------------------------ */
+
+export function buildFilterSQL(filter: Filter): SQL | undefined {
+  if ('combinator' in filter) {
+    const children = filter.filters
+      .map(buildFilterSQL)
+      .filter((c): c is SQL => c !== undefined);
+    if (children.length === 0) return undefined;
+    if (children.length === 1) return children[0];
+    return filter.combinator === 'and' ? and(...children) : or(...children);
+  }
+
+  return buildClauseSQL(filter);
+}
+
+/** Coerce a filter value for a timestamp column into a JS Date.
+ *  Accepts ISO strings (e.g. datetime-local "2026-05-10T09:27"), numbers
+ *  (treated as Unix epoch milliseconds, matching JS Date.getTime()), or
+ *  Date objects passed through unchanged. */
+function coerceToDate(v: unknown): Date {
+  if (v instanceof Date) return v;
+  if (typeof v === 'number') return new Date(v);
+  return new Date(String(v));
+}
+
+function buildClauseSQL(clause: FilterClause): SQL | undefined {
+  const { field, op } = clause;
+  let { value } = clause;
+
+  const booleanFlagFields = new Set([
+    'hasAttachment',
+    'hasEmbed',
+    'hasReaction',
+    'isDeleted',
+    'isEdited',
+    'isDm',
+  ]);
+
+  if (booleanFlagFields.has(field)) {
+    if (op === field || op === 'eq') {
+      const isTrue = value !== false;
+      switch (field) {
+        case 'hasAttachment':
+          return isTrue
+            ? sql`EXISTS (SELECT 1 FROM ${schema.attachments} WHERE ${schema.attachments.messageId} = ${schema.messages.id})`
+            : sql`NOT EXISTS (SELECT 1 FROM ${schema.attachments} WHERE ${schema.attachments.messageId} = ${schema.messages.id})`;
+        case 'hasEmbed':
+          return isTrue
+            ? and(isNotNull(schema.messages.embedsJson), ne(schema.messages.embedsJson, '[]'))
+            : or(isNull(schema.messages.embedsJson), eq(schema.messages.embedsJson, '[]'));
+        case 'hasReaction':
+          return isTrue
+            ? sql`EXISTS (SELECT 1 FROM ${schema.reactions} WHERE ${schema.reactions.messageId} = ${schema.messages.id})`
+            : sql`NOT EXISTS (SELECT 1 FROM ${schema.reactions} WHERE ${schema.reactions.messageId} = ${schema.messages.id})`;
+        case 'isDeleted':
+          return isTrue ? isNotNull(schema.messages.deletedAt) : isNull(schema.messages.deletedAt);
+        case 'isEdited':
+          return isTrue ? isNotNull(schema.messages.editedAt) : isNull(schema.messages.editedAt);
+        case 'isDm':
+          return isTrue ? eq(schema.messages.isDm, true) : eq(schema.messages.isDm, false);
+      }
+    }
+    return undefined;
+  }
+
+  if (field === 'messageType') {
+    const types = Array.isArray(value) ? value : [value];
+    const conditions: SQL[] = [];
+
+    for (const type of types) {
+      if (type === 'reply') {
+        conditions.push(isNotNull(schema.messages.replyToId));
+      } else if (type === 'default') {
+        conditions.push(isNull(schema.messages.replyToId));
+      }
+      // 'pin' and 'system' are not stored in the schema; they are silently ignored
+    }
+
+    if (conditions.length === 0) return undefined;
+    if (op === 'eq') return conditions[0];
+    if (op === 'in') return conditions.length === 1 ? conditions[0] : or(...conditions);
+    return undefined;
+  }
+
+  let col;
+  switch (field) {
+    case 'guildId':
+      col = schema.messages.guildId;
+      break;
+    case 'channelId':
+      col = schema.messages.channelId;
+      break;
+    case 'authorId':
+      col = schema.messages.authorId;
+      break;
+    case 'content':
+      col = schema.messages.content;
+      break;
+    case 'createdAt':
+      col = schema.messages.createdAt;
+      // Coerce datetime-local strings / epoch numbers to Date objects so
+      // Drizzle can correctly compare against the integer timestamp column.
+      if (op !== 'isNull' && op !== 'isNotNull') {
+        if (op === 'between' && Array.isArray(value) && value.length === 2) {
+          value = [coerceToDate(value[0]), coerceToDate(value[1])];
+        } else if (value !== undefined) {
+          value = coerceToDate(value);
+        }
+      }
+      break;
+    default:
+      return undefined;
+  }
+
+  switch (op) {
+    case 'eq':
+      return eq(col, value as any);
+    case 'neq':
+      return ne(col, value as any);
+    case 'gt':
+      return gt(col, value as any);
+    case 'gte':
+      return gte(col, value as any);
+    case 'lt':
+      return lt(col, value as any);
+    case 'lte':
+      return lte(col, value as any);
+    case 'contains':
+      return like(col, `%${value}%`);
+    case 'startsWith':
+      return like(col, `${value}%`);
+    case 'endsWith':
+      return like(col, `%${value}`);
+    case 'in':
+      return inArray(col, Array.isArray(value) ? value : [value]);
+    case 'nin':
+      return notInArray(col, Array.isArray(value) ? value : [value]);
+    case 'between':
+      if (Array.isArray(value) && value.length === 2) {
+        return and(gte(col, value[0]), lte(col, value[1]));
+      }
+      return undefined;
+    case 'isNull':
+      return isNull(col);
+    case 'isNotNull':
+      return isNotNull(col);
+    default:
+      return undefined;
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /*  searchMessages                                                     */
 /* ------------------------------------------------------------------ */
 
 export function searchMessages(
   q: string,
-  filters: MessageFilters = {},
+  filter?: Filter,
   pagination: Pagination = {}
 ): SearchResult {
   const limit = pagination.limit ?? 50;
-  const conditions = buildMessageConditions(filters);
+  const conditions: SQL[] = [];
+
+  const filterSQL = filter ? buildFilterSQL(filter) : undefined;
+  if (filterSQL) {
+    conditions.push(filterSQL);
+  }
+
+  // Cursor pagination — validate format "timestampMs:id" before applying
+  if (pagination.cursor) {
+    const sepIndex = pagination.cursor.indexOf(':');
+    if (sepIndex > 0) {
+      const tsStr = pagination.cursor.slice(0, sepIndex);
+      const cursorId = pagination.cursor.slice(sepIndex + 1);
+      const tsNum = Number(tsStr);
+      if (!isNaN(tsNum) && cursorId) {
+        const cursorDate = new Date(tsNum);
+        conditions.push(
+          or(
+            lt(schema.messages.createdAt, cursorDate),
+            and(eq(schema.messages.createdAt, cursorDate), lt(schema.messages.id, cursorId))
+          )
+        );
+      }
+    }
+    // Invalid cursor format is ignored — returns results from the beginning
+  }
 
   // Try FTS5 first
   try {
@@ -226,12 +407,19 @@ export function searchMessages(
         query = query.where(and(...conditions));
       }
 
-      const data = query
+      const rows = query
         .orderBy(desc(schema.messages.createdAt), desc(schema.messages.id))
-        .limit(limit)
+        .limit(limit + 1)
         .all();
 
-      return { data, nextCursor: null, source: 'fts' };
+      const hasMore = rows.length > limit;
+      const data = hasMore ? rows.slice(0, -1) : rows;
+      const nextCursor =
+        hasMore && data.length > 0
+          ? `${data[data.length - 1].createdAt?.getTime()}:${data[data.length - 1].id}`
+          : null;
+
+      return { data, nextCursor, source: 'fts' };
     }
   } catch {
     // FTS failed (e.g. query syntax error) — fall through to LIKE
@@ -246,12 +434,19 @@ export function searchMessages(
     query = query.where(and(...conditions));
   }
 
-  const data = query
+  const rows = query
     .orderBy(desc(schema.messages.createdAt), desc(schema.messages.id))
-    .limit(limit)
+    .limit(limit + 1)
     .all();
 
-  return { data, nextCursor: null, source: 'like' };
+  const hasMore = rows.length > limit;
+  const data = hasMore ? rows.slice(0, -1) : rows;
+  const nextCursor =
+    hasMore && data.length > 0
+      ? `${data[data.length - 1].createdAt?.getTime()}:${data[data.length - 1].id}`
+      : null;
+
+  return { data, nextCursor, source: 'like' };
 }
 
 /* ------------------------------------------------------------------ */
