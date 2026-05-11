@@ -111,6 +111,8 @@ export default function Overview() {
   }, []);
 
   useEffect(() => {
+    if (!socket) return;
+
     const onMessage = (message: RecentMessage) => {
       setRecent((prev) => [message, ...prev.filter((item) => item.id !== message.id)].slice(0, 8));
     };
