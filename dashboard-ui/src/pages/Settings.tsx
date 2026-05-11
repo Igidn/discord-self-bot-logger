@@ -1,12 +1,24 @@
 import { useEffect, useState } from 'react';
 import {
-  Settings as SettingsIcon,
   Download,
   Trash2,
   AlertTriangle,
   RotateCcw,
+  Database,
+  Clock,
 } from 'lucide-react';
 import apiClient from '../api/client';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface ConfigData {
   logging?: {
@@ -70,135 +82,205 @@ export default function Settings() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="p-6">
-        <div className="text-sm text-gray-500">Loading settings...</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="p-6 space-y-6 overflow-y-auto max-w-3xl">
-      <h1 className="text-2xl font-bold flex items-center gap-2">
-        <SettingsIcon className="w-6 h-6 text-discord-blurple" />
-        Settings
-      </h1>
-
-      {/* Config Display */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl">
-        <div className="p-4 border-b border-gray-800">
-          <h2 className="font-semibold">Configuration</h2>
-        </div>
-        <div className="p-4 space-y-4">
-          <ConfigRow label="Dashboard Host" value={config?.dashboard?.host ?? '127.0.0.1'} />
-          <ConfigRow label="Dashboard Port" value={String(config?.dashboard?.port ?? 3333)} />
-          <ConfigRow label="Database Path" value={config?.database?.path ?? './storage/logs.db'} />
-          <ConfigRow label="WAL Mode" value={config?.database?.wal ? 'Enabled' : 'Disabled'} />
-          <ConfigRow
-            label="Logged Guilds"
-            value={String(config?.logging?.guilds?.length ?? 0)}
-          />
-          <ConfigRow
-            label="DM Logging"
-            value={config?.logging?.logDirectMessages ? 'Enabled' : 'Disabled'}
-          />
-        </div>
+    <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-6 max-w-3xl">
+      {/* Page header */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Manage your logger configuration, data export, and retention policies.
+        </p>
       </div>
+
+      {/* Configuration */}
+      <Card>
+        <CardHeader className="flex flex-row items-center gap-3 space-y-0 pb-4">
+          <div className="rounded-md bg-muted p-2">
+            <Database className="size-4 text-muted-foreground" />
+          </div>
+          <div>
+            <CardTitle className="text-base">Configuration</CardTitle>
+            <CardDescription>Current runtime settings (read-only)</CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {loading ? (
+            <div className="space-y-1">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex items-center justify-between py-2.5">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div>
+              <ConfigRow label="Dashboard Host" value={config?.dashboard?.host ?? '127.0.0.1'} />
+              <Separator />
+              <ConfigRow label="Dashboard Port" value={String(config?.dashboard?.port ?? 3333)} />
+              <Separator />
+              <ConfigRow
+                label="Database Path"
+                value={config?.database?.path ?? './storage/logs.db'}
+                mono
+              />
+              <Separator />
+              <ConfigRow
+                label="WAL Mode"
+                value={config?.database?.wal ? 'Enabled' : 'Disabled'}
+                badge={{ variant: config?.database?.wal ? 'default' : 'secondary' }}
+              />
+              <Separator />
+              <ConfigRow
+                label="Logged Guilds"
+                value={String(config?.logging?.guilds?.length ?? 0)}
+              />
+              <Separator />
+              <ConfigRow
+                label="DM Logging"
+                value={config?.logging?.logDirectMessages ? 'Enabled' : 'Disabled'}
+                badge={{
+                  variant: config?.logging?.logDirectMessages ? 'default' : 'secondary',
+                }}
+              />
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Retention */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl">
-        <div className="p-4 border-b border-gray-800">
-          <h2 className="font-semibold">Retention</h2>
-        </div>
-        <div className="p-4 space-y-4">
-          <ConfigRow
-            label="Retention Days"
-            value={String(config?.logging?.retentionDays ?? 365)}
-          />
-          <p className="text-xs text-gray-500">
-            Messages older than the retention period are automatically purged during the daily cleanup cycle.
-          </p>
-        </div>
-      </div>
+      <Card>
+        <CardHeader className="flex flex-row items-center gap-3 space-y-0 pb-4">
+          <div className="rounded-md bg-muted p-2">
+            <Clock className="size-4 text-muted-foreground" />
+          </div>
+          <div>
+            <CardTitle className="text-base">Retention</CardTitle>
+            <CardDescription>Message storage and cleanup policy</CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0 space-y-2">
+          {loading ? (
+            <Skeleton className="h-4 w-32" />
+          ) : (
+            <>
+              <ConfigRow
+                label="Retention Days"
+                value={String(config?.logging?.retentionDays ?? 365)}
+              />
+              <p className="text-xs text-muted-foreground pt-1">
+                Messages older than the retention period are automatically purged during the daily
+                cleanup cycle.
+              </p>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Export */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl">
-        <div className="p-4 border-b border-gray-800">
-          <h2 className="font-semibold">Export</h2>
-        </div>
-        <div className="p-4 space-y-4">
+      <Card>
+        <CardHeader className="flex flex-row items-center gap-3 space-y-0 pb-4">
+          <div className="rounded-md bg-muted p-2">
+            <Download className="size-4 text-muted-foreground" />
+          </div>
+          <div>
+            <CardTitle className="text-base">Export</CardTitle>
+            <CardDescription>Download your logged message data</CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0 space-y-4">
           <div className="flex items-center gap-3">
             <select
               value={exportFormat}
               onChange={(e) => setExportFormat(e.target.value as 'jsonl' | 'csv' | 'html')}
-              className="bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-discord-blurple"
+              className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <option value="jsonl">JSONL</option>
               <option value="csv">CSV</option>
               <option value="html">HTML</option>
             </select>
-            <button
-              onClick={handleExport}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-discord-blurple hover:bg-discord-blurple/90 rounded-lg text-sm font-medium transition-colors"
-            >
-              <Download className="w-4 h-4" />
+            <Button onClick={handleExport} size="sm" className="gap-2">
+              <Download className="size-4" />
               Start Export
-            </button>
+            </Button>
           </div>
           {exportJobId && (
-            <div className="text-xs text-discord-green">
-              Export job started: <code className="bg-gray-950 px-1 py-0.5 rounded">{exportJobId}</code>
+            <div className="rounded-md bg-emerald-500/10 border border-emerald-500/20 px-3 py-2">
+              <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                Export job started:{' '}
+                <code className="font-mono bg-emerald-500/10 px-1 py-0.5 rounded">
+                  {exportJobId}
+                </code>
+              </p>
             </div>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Danger Zone */}
-      <div className="bg-discord-red/5 border border-discord-red/20 rounded-xl">
-        <div className="p-4 border-b border-discord-red/20">
-          <h2 className="font-semibold text-discord-red flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4" />
-            Danger Zone
-          </h2>
-        </div>
-        <div className="p-4 space-y-4">
-          <div className="flex items-center justify-between">
+      <Card className="border-destructive/30">
+        <CardHeader className="flex flex-row items-center gap-3 space-y-0 pb-4">
+          <div className="rounded-md bg-destructive/10 p-2">
+            <AlertTriangle className="size-4 text-destructive" />
+          </div>
+          <div>
+            <CardTitle className="text-base text-destructive">Danger Zone</CardTitle>
+            <CardDescription>Irreversible actions — proceed with caution</CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0 space-y-4">
+          <div className="flex items-center justify-between gap-4">
             <div>
-              <div className="text-sm font-medium">Purge Old Data</div>
-              <div className="text-xs text-gray-500">
+              <p className="text-sm font-medium">Purge Old Data</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
                 Permanently delete messages older than the retention threshold.
-              </div>
+              </p>
             </div>
-            <button
+            <Button
               onClick={handlePurge}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                purgeConfirm
-                  ? 'bg-discord-red text-white hover:bg-discord-red/90'
-                  : 'bg-gray-800 hover:bg-gray-700'
-              }`}
+              variant={purgeConfirm ? 'destructive' : 'outline'}
+              size="sm"
+              className="gap-2 shrink-0"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="size-4" />
               {purgeConfirm ? 'Confirm Purge' : 'Purge'}
-            </button>
+            </Button>
           </div>
           {purgeConfirm && (
-            <div className="text-xs text-discord-red flex items-center gap-1">
-              <RotateCcw className="w-3 h-3" />
+            <div className="flex items-center gap-1.5 text-xs text-destructive">
+              <RotateCcw className="size-3 shrink-0" />
               Click again to confirm. This action cannot be undone.
             </div>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
 
-function ConfigRow({ label, value }: { label: string; value: string }) {
+// ─── Sub-components ─────────────────────────────────────────────────────────────
+
+function ConfigRow({
+  label,
+  value,
+  mono,
+  badge,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  badge?: { variant: 'default' | 'secondary' | 'destructive' | 'outline' };
+}) {
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-sm text-gray-400">{label}</span>
-      <span className="text-sm font-medium">{value}</span>
+    <div className="flex items-center justify-between py-2.5">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      {badge ? (
+        <Badge variant={badge.variant} className="text-xs">
+          {value}
+        </Badge>
+      ) : (
+        <span className={`text-sm font-medium ${mono ? 'font-mono text-xs' : ''}`}>{value}</span>
+      )}
     </div>
   );
 }

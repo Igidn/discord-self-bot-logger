@@ -1,82 +1,153 @@
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation } from 'react-router-dom';
 import {
-  LayoutDashboard,
-  Settings as SettingsIcon,
-  Search,
-  Activity,
-  BarChart3,
-  Server,
-  MonitorCog,
-} from 'lucide-react';
-import { LiveBadge } from './LiveBadge';
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
+import { Separator } from '@/components/ui/separator';
+import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+import { AppSidebar } from './AppSidebar';
+import { TopSearchBar } from './TopSearchBar';
 
-const navItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Overview' },
-  { to: '/setup', icon: MonitorCog, label: 'Setup' },
-  { to: '/search', icon: Search, label: 'Search' },
-  { to: '/activity', icon: Activity, label: 'Activity' },
-  { to: '/stats', icon: BarChart3, label: 'Stats' },
-  { to: '/settings', icon: SettingsIcon, label: 'Settings' },
-];
+function getSidebarDefaultOpen(): boolean {
+  try {
+    const match = document.cookie.match(/sidebar_state=([^;]+)/);
+    return match ? match[1] === 'true' : true;
+  } catch {
+    return true;
+  }
+}
 
 export function Layout() {
   const location = useLocation();
-  const isGuildRoute = location.pathname.startsWith('/guilds/');
+  const page = getPageMeta(location.pathname);
 
   return (
-    <div className="flex h-screen bg-gray-950 text-gray-100">
-      {/* Sidebar */}
-      <aside className="w-64 bg-gray-900 border-r border-gray-800 flex flex-col">
-        <div className="p-4 border-b border-gray-800 flex items-center gap-3">
-          <Server className="w-6 h-6 text-discord-blurple" />
-          <span className="font-bold text-lg tracking-tight">Logger</span>
-          <div className="ml-auto">
-            <LiveBadge />
+    <SidebarProvider defaultOpen={getSidebarDefaultOpen()}>
+      <AppSidebar />
+      <SidebarInset>
+        <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="flex flex-1 items-center gap-2 px-4">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mr-2 h-4" />
+            <Breadcrumb>
+              <BreadcrumbList>
+                {page.parent ? (
+                  <>
+                    <BreadcrumbItem className="hidden md:block">
+                      <BreadcrumbLink asChild>
+                        <Link to={page.parent.to}>{page.parent.label}</Link>
+                      </BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator className="hidden md:block" />
+                  </>
+                ) : null}
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{page.title}</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
           </div>
+          <div className="flex items-center gap-2 px-4">
+            <TopSearchBar />
+          </div>
+        </header>
+
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <Outlet />
         </div>
-
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-discord-blurple/20 text-discord-blurple'
-                    : 'text-gray-400 hover:bg-gray-800 hover:text-gray-100'
-                }`
-              }
-            >
-              <item.icon className="w-4 h-4" />
-              {item.label}
-            </NavLink>
-          ))}
-
-          {isGuildRoute && (
-            <div className="mt-4 pt-4 border-t border-gray-800">
-              <span className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Current Guild</span>
-              <GuildBreadcrumb />
-            </div>
-          )}
-        </nav>
-      </aside>
-
-      {/* Main content */}
-      <main className="flex-1 flex flex-col min-w-0">
-        <Outlet />
-      </main>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
 
-function GuildBreadcrumb() {
-  // Minimal breadcrumb for guild routes; could be enriched with guild name fetch
-  return (
-    <div className="mt-2 px-3 py-2 text-xs text-gray-500 truncate">
-      <Link to="/" className="hover:text-gray-300">Dashboard</Link>
-      <span className="mx-1">/</span>
-      <span>Guild</span>
-    </div>
-  );
+function getPageMeta(pathname: string): {
+  title: string;
+  description: string;
+  parent?: { label: string; to: string };
+} {
+  if (pathname === '/') {
+    return {
+      title: 'Overview',
+      description: 'Monitor recent activity, ingestion health, and dashboard highlights.',
+    };
+  }
+
+  if (pathname === '/setup') {
+    return {
+      title: 'Setup',
+      description: 'Configure ingestion, storage paths, and runtime preferences.',
+    };
+  }
+
+  if (pathname === '/search') {
+    return {
+      title: 'Search',
+      description: 'Explore indexed messages, users, and attachments.',
+      parent: { label: 'Overview', to: '/' },
+    };
+  }
+
+  if (pathname === '/activity') {
+    return {
+      title: 'Activity',
+      description: 'Inspect member, voice, presence, and audit activity.',
+      parent: { label: 'Overview', to: '/' },
+    };
+  }
+
+  if (pathname === '/stats') {
+    return {
+      title: 'Analytics',
+      description: 'Review message trends and the most active channels and users.',
+      parent: { label: 'Overview', to: '/' },
+    };
+  }
+
+  if (pathname === '/settings') {
+    return {
+      title: 'Settings',
+      description: 'Manage dashboard behavior and maintenance tools.',
+    };
+  }
+
+  if (pathname.startsWith('/guilds/') && pathname.includes('/channels/')) {
+    return {
+      title: 'Channel Feed',
+      description: 'Follow channel activity and recent message capture.',
+      parent: { label: 'Guild', to: pathname.replace(/\/channels\/.*$/, '') },
+    };
+  }
+
+  if (pathname.startsWith('/guilds/')) {
+    return {
+      title: 'Guild Workspace',
+      description: 'Browse guild-specific channels, stats, and activity.',
+      parent: { label: 'Overview', to: '/' },
+    };
+  }
+
+  if (pathname.startsWith('/messages/')) {
+    return {
+      title: 'Message Detail',
+      description: 'Inspect metadata, edits, and related author information.',
+       parent: { label: 'Results', to: '/search' },
+    };
+  }
+
+  if (pathname.startsWith('/users/')) {
+    return {
+      title: 'User Profile',
+      description: 'View message history and activity for a tracked user.',
+       parent: { label: 'Results', to: '/search' },
+    };
+  }
+
+  return {
+    title: 'Dashboard',
+    description: 'Navigate the Discord logger workspace.',
+  };
 }

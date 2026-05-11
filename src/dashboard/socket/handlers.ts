@@ -6,6 +6,7 @@ import {
   clearSocketRooms,
   channelRoom,
   guildRoom,
+  globalRoom,
   setSearchSubscription,
   removeSearchSubscription,
 } from '@/dashboard/socket/rooms.js';
@@ -17,6 +18,8 @@ import {
 } from '@/database/queries.js';
 
 export function registerSocketHandlers(socket: Socket): void {
+  joinRoom(socket, globalRoom());
+
   socket.on('subscribe:channel', ({ channelId }: { channelId: string }) => {
     if (typeof channelId !== 'string') return;
     joinRoom(socket, channelRoom(channelId));

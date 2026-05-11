@@ -1,33 +1,45 @@
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import { useSocketContext } from '../socket/context';
 
 export function LiveBadge() {
   const { status } = useSocketContext();
 
-  const colorClass =
+  const config =
     status === 'connected'
-      ? 'bg-discord-green'
-      : status === 'reconnecting' || status === 'connecting'
-      ? 'bg-discord-yellow'
-      : 'bg-discord-red';
-
-  const label =
-    status === 'connected'
-      ? 'Live'
+      ? {
+          label: 'Live',
+          badgeClassName: 'border-primary/20 bg-primary/10 text-primary',
+          dotClassName: 'bg-primary',
+        }
       : status === 'reconnecting'
-      ? 'Reconnecting'
+      ? {
+          label: 'Reconnecting',
+          badgeClassName: 'border-border bg-muted text-muted-foreground',
+          dotClassName: 'animate-pulse bg-muted-foreground',
+        }
       : status === 'connecting'
-      ? 'Connecting'
-      : 'Disconnected';
+      ? {
+          label: 'Connecting',
+          badgeClassName: 'border-border bg-muted text-muted-foreground',
+          dotClassName: 'bg-muted-foreground',
+        }
+      : {
+          label: 'Disconnected',
+          badgeClassName: 'border-destructive/20 bg-destructive/10 text-destructive',
+          dotClassName: 'bg-destructive',
+        };
 
   return (
-    <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-gray-800 border border-gray-700">
-      <span className={`relative flex h-2 w-2`}>
-        <span
-          className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${colorClass}`}
-        />
-        <span className={`relative inline-flex rounded-full h-2 w-2 ${colorClass}`} />
-      </span>
-      <span className="text-[10px] font-medium text-gray-300 uppercase tracking-wider">{label}</span>
-    </div>
+    <Badge
+      variant="outline"
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.18em]',
+        config.badgeClassName,
+      )}
+    >
+      <span className={cn('size-1.5 rounded-full', config.dotClassName)} />
+      <span aria-live="polite">{config.label}</span>
+    </Badge>
   );
 }
