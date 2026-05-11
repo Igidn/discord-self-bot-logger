@@ -84,7 +84,7 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export default function Overview() {
-  const { status } = useSocketContext();
+  const { socket, status } = useSocketContext();
   const [health, setHealth] = useState<HealthStats | null>(null);
   const [recent, setRecent] = useState<RecentMessage[]>([]);
   const [stats, setStats] = useState<OverviewStats | null>(null);
@@ -109,6 +109,18 @@ export default function Overview() {
     }
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const onMessage = (message: RecentMessage) => {
+      setRecent((prev) => [message, ...prev.filter((item) => item.id !== message.id)].slice(0, 8));
+    };
+
+    socket.on('message:new', onMessage);
+
+    return () => {
+      socket.off('message:new', onMessage);
+    };
+  }, [socket]);
 
   const activityTrend = useMemo(
     () =>
