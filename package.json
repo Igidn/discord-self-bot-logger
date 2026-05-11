@@ -1,6 +1,7 @@
 {
   "name": "discord-self-bot-logger",
   "version": "1.0.0",
+  "private": true,
   "description": "Discord selfbot message logger with dashboard",
   "type": "module",
   "scripts": {
