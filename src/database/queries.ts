@@ -45,8 +45,16 @@ export interface Pagination {
   cursor?: string; // format: "createdAtTimestamp:id"
 }
 
+export interface MessageWithAuthor {
+  author?: {
+    id: string;
+    username: string;
+    avatarUrl?: string | null;
+  } | null;
+}
+
 export interface PaginatedMessages {
-  data: (typeof schema.messages.$inferSelect)[];
+  data: ((typeof schema.messages.$inferSelect) & MessageWithAuthor)[];
   nextCursor: string | null;
 }
 
@@ -58,7 +66,7 @@ export interface MessageDetail {
 }
 
 export interface SearchResult {
-  data: (typeof schema.messages.$inferSelect)[];
+  data: ((typeof schema.messages.$inferSelect) & MessageWithAuthor)[];
   nextCursor: string | null;
   source: 'fts' | 'like';
 }
@@ -126,6 +134,35 @@ function buildMessageConditions(filters: MessageFilters) {
   return conditions;
 }
 
+function attachAuthors<T extends { authorId: string }>(
+  messages: T[]
+): (T & MessageWithAuthor)[] {
+  if (messages.length === 0) return [];
+
+  const authorIds = [...new Set(messages.map((m) => m.authorId))].filter(
+    (id) => id && id !== 'unknown'
+  );
+  if (authorIds.length === 0) {
+    return messages.map((m) => ({ ...m, author: null })) as (T & MessageWithAuthor)[];
+  }
+
+  const users = db
+    .select({
+      id: schema.users.id,
+      username: schema.users.username,
+      avatarUrl: schema.users.avatarUrl,
+    })
+    .from(schema.users)
+    .where(inArray(schema.users.id, authorIds))
+    .all();
+
+  const userMap = new Map(users.map((u) => [u.id, u]));
+  return messages.map((m) => ({
+    ...m,
+    author: userMap.get(m.authorId) ?? null,
+  })) as (T & MessageWithAuthor)[];
+}
+
 /* ------------------------------------------------------------------ */
 /*  getMessages                                                        */
 /* ------------------------------------------------------------------ */
@@ -167,7 +204,7 @@ export function getMessages(
       ? `${data[data.length - 1].createdAt?.getTime()}:${data[data.length - 1].id}`
       : null;
 
-  return { data, nextCursor };
+  return { data: attachAuthors(data), nextCursor };
 }
 
 /* ------------------------------------------------------------------ */
@@ -419,7 +456,7 @@ export function searchMessages(
           ? `${data[data.length - 1].createdAt?.getTime()}:${data[data.length - 1].id}`
           : null;
 
-      return { data, nextCursor, source: 'fts' };
+      return { data: attachAuthors(data), nextCursor, source: 'fts' };
     }
   } catch {
     // FTS failed (e.g. query syntax error) — fall through to LIKE
@@ -446,7 +483,7 @@ export function searchMessages(
       ? `${data[data.length - 1].createdAt?.getTime()}:${data[data.length - 1].id}`
       : null;
 
-  return { data, nextCursor, source: 'like' };
+  return { data: attachAuthors(data), nextCursor, source: 'like' };
 }
 
 /* ------------------------------------------------------------------ */
