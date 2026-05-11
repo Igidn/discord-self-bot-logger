@@ -2,6 +2,7 @@
 
 A powerful Discord self-bot that logs messages, events, and server activity to a local SQLite database, paired with a real-time web dashboard for searching, browsing, and analyzing your Discord data.
 
+> [!WARNING]
 > **Warning:** Self-bots violate Discord's Terms of Service. Using a user token may result in account termination. This tool is intended for educational purposes and personal data archival only. Use at your own risk.
 
 > [!NOTE]
