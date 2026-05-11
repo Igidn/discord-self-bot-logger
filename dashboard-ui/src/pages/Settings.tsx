@@ -94,21 +94,6 @@ export default function Settings() {
     }
   };
 
-  const handleDmSave = async () => {
-    setDmSaving(true);
-    setDmSaved(false);
-    setDmError(null);
-    try {
-      await apiClient.post('/config/logging/dm', { enabled: dmEnabled });
-      setDmSaved(true);
-      setTimeout(() => setDmSaved(false), 2000);
-    } catch (err: any) {
-      setDmError(err?.response?.data?.error || 'Failed to save');
-    } finally {
-      setDmSaving(false);
-    }
-  };
-
   const handleRetentionSave = async () => {
     setRetentionSaving(true);
     setRetentionSaved(false);
@@ -210,28 +195,33 @@ export default function Settings() {
                   <Switch
                     id="dm-logging"
                     checked={dmEnabled}
-                    onChange={(e) => {
-                      setDmEnabled(e.target.checked);
+                    disabled={dmSaving}
+                    onChange={async (e) => {
+                      const checked = e.target.checked;
+                      setDmEnabled(checked);
                       setDmSaved(false);
+                      setDmError(null);
+                      setDmSaving(true);
+                      try {
+                        await apiClient.post('/config/logging/dm', { enabled: checked });
+                        setDmSaved(true);
+                        setTimeout(() => setDmSaved(false), 2000);
+                      } catch (err: any) {
+                        setDmError(err?.response?.data?.error || 'Failed to save');
+                        setDmEnabled(!checked);
+                      } finally {
+                        setDmSaving(false);
+                      }
                     }}
                   />
-                  <Button
-                    onClick={handleDmSave}
-                    disabled={dmSaving}
-                    size="sm"
-                    className="gap-1.5"
-                  >
-                    <Save className="size-3.5" />
-                    {dmSaving ? 'Saving...' : dmSaved ? 'Saved!' : 'Save'}
-                  </Button>
+                  {dmSaving && (
+                    <span className="text-xs text-muted-foreground">Saving...</span>
+                  )}
+                  {dmSaved && (
+                    <span className="text-xs text-emerald-600 dark:text-emerald-400">Saved!</span>
+                  )}
                 </div>
               </div>
-              {dmSaved && (
-                <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 pb-1">
-                  <CheckCircle2 className="size-3 shrink-0" />
-                  DM logging setting saved successfully.
-                </div>
-              )}
               {dmError && (
                 <div className="text-xs text-destructive pb-1">{dmError}</div>
               )}
