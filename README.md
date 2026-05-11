@@ -1,1 +1,1 @@
-<p align="center"># Discord Selfbot Logger</p>
+<p align="center"> **Discord Selfbot Logger** </p>
