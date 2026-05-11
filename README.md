@@ -1,1 +1,1 @@
-#                                                         discord selfbot logger
+<p align="center"># Discord Selfbot Logger</p>
