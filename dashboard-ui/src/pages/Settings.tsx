@@ -65,7 +65,11 @@ export default function Settings() {
         const res = await apiClient.get<ConfigData>('/config');
         setConfig(res.data);
         setDmEnabled(res.data.logging?.logDirectMessages ?? false);
-        setRetentionDays(res.data.logging?.retentionDays ?? 365);
+        setRetentionDays(
+          res.data.logging?.retentionDays !== undefined
+            ? res.data.logging.retentionDays
+            : 365
+        );
       } catch (err) {
         console.error(err);
       } finally {
@@ -80,7 +84,11 @@ export default function Settings() {
       const res = await apiClient.get<ConfigData>('/config');
       setConfig(res.data);
       setDmEnabled(res.data.logging?.logDirectMessages ?? false);
-      setRetentionDays(res.data.logging?.retentionDays ?? 365);
+      setRetentionDays(
+        res.data.logging?.retentionDays !== undefined
+          ? res.data.logging.retentionDays
+          : 365
+      );
     } catch (err) {
       console.error(err);
     }
@@ -93,7 +101,6 @@ export default function Settings() {
     try {
       await apiClient.post('/config/logging/dm', { enabled: dmEnabled });
       setDmSaved(true);
-      await refreshConfig();
       setTimeout(() => setDmSaved(false), 2000);
     } catch (err: any) {
       setDmError(err?.response?.data?.error || 'Failed to save');
@@ -109,7 +116,6 @@ export default function Settings() {
     try {
       await apiClient.post('/config/logging/retention', { days: retentionDays });
       setRetentionSaved(true);
-      await refreshConfig();
       setTimeout(() => setRetentionSaved(false), 2000);
     } catch (err: any) {
       setRetentionError(err?.response?.data?.error || 'Failed to save');
@@ -197,9 +203,12 @@ export default function Settings() {
               />
               <Separator />
               <div className="flex items-center justify-between py-2.5">
-                <span className="text-sm text-muted-foreground">DM Logging</span>
+                <label htmlFor="dm-logging" className="text-sm text-muted-foreground cursor-pointer">
+                  DM Logging
+                </label>
                 <div className="flex items-center gap-3">
                   <Switch
+                    id="dm-logging"
                     checked={dmEnabled}
                     onChange={(e) => {
                       setDmEnabled(e.target.checked);
@@ -252,7 +261,7 @@ export default function Settings() {
                 <div className="flex items-center gap-3">
                   <Input
                     type="number"
-                    min={1}
+                    min={0}
                     value={retentionDays}
                     onChange={(e) => {
                       setRetentionDays(Number(e.target.value));

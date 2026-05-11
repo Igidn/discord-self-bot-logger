@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { db } from '@/database/index.js';
 import { sql } from 'drizzle-orm';
-import { config } from '@/config/loader.js';
+import { config, loadConfig } from '@/config/loader.js';
 import { logger } from '@/utils/logger.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -110,7 +110,13 @@ export function runPurge(retentionDaysOverride?: number): PurgeSummary {
 }
 
 function cleanupOrphans(): void {
-  const attachmentsDir = path.resolve(process.cwd(), config.logging.attachments.path);
+  let currentConfig = config;
+  try {
+    currentConfig = loadConfig();
+  } catch {
+    // keep in-memory config if file is invalid
+  }
+  const attachmentsDir = path.resolve(process.cwd(), currentConfig.logging.attachments.path);
 
   if (!fs.existsSync(attachmentsDir)) {
     return;
