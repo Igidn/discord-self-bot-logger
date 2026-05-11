@@ -1,8 +1,11 @@
-<h1 align="Center">Discord Self-Bot Logger (unfinished)</h1>
+<h1 align="Center">Discord Self-Bot Logger</h1>
 
 A powerful Discord self-bot that logs messages, events, and server activity to a local SQLite database, paired with a real-time web dashboard for searching, browsing, and analyzing your Discord data.
 
 > **Warning:** Self-bots violate Discord's Terms of Service. Using a user token may result in account termination. This tool is intended for educational purposes and personal data archival only. Use at your own risk.
+
+> [!Some feature are still unfinished]
+
 
 ---
 
