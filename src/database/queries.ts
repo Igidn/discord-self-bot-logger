@@ -48,7 +48,7 @@ export interface Pagination {
 export interface MessageWithAuthor {
   author?: {
     id: string;
-    username: string;
+    username: string | null;
     avatarUrl?: string | null;
   } | null;
 }
@@ -576,11 +576,12 @@ export function getOverviewStats(days: number = 30): OverviewStats {
     LIMIT 10
   `);
 
-  const topUsers = db.all<{ userId: string; count: number }>(sql`
-    SELECT author_id AS userId, count(*) AS count
-    FROM messages
-    WHERE created_at >= ${sinceSec}
-    GROUP BY author_id
+  const topUsers = db.all<{ userId: string; username: string | null; count: number }>(sql`
+    SELECT m.author_id AS userId, u.username AS username, count(*) AS count
+    FROM messages m
+    LEFT JOIN users u ON u.id = m.author_id
+    WHERE m.created_at >= ${sinceSec}
+    GROUP BY m.author_id
     ORDER BY count DESC
     LIMIT 10
   `);

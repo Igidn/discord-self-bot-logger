@@ -236,7 +236,7 @@ export default function Stats() {
           </CardHeader>
           <CardContent>
             {loading ? (
-              <RankListSkeleton />
+              <RankListSkeleton showAvatar={false} />
             ) : (
               <RankList items={topChannels} emptyLabel="No channel activity yet." />
             )}
@@ -340,14 +340,14 @@ function RankList({
   );
 }
 
-function RankListSkeleton() {
+function RankListSkeleton({ showAvatar = true }: { showAvatar?: boolean }) {
   return (
     <div className="flex flex-col gap-3">
       {Array.from({ length: 7 }).map((_, i) => (
         <div key={i} className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Skeleton className="size-5 rounded-full" />
+              {showAvatar && <Skeleton className="size-5 rounded-full" />}
               <Skeleton className="h-4 w-32" />
             </div>
             <Skeleton className="h-4 w-10" />
