@@ -137,6 +137,13 @@ async function onMessageCreate(client: Client, _db: any, message: Message) {
       createdAt: message.createdTimestamp,
       attachments: message.attachments.size,
       stickers: stickerLinks,
+      author: message.author
+        ? {
+            id: message.author.id,
+            username: message.author.username,
+            avatarUrl: message.author.avatarURL({ size: 128 }),
+          }
+        : null,
     };
 
     broadcaster.toChannel(channelId, 'message:new', payload);

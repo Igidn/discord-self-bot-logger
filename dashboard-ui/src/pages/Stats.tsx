@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { BarChart3, Hash, MessageSquare, TrendingUp, User } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import apiClient from '../api/client';
 import {
   Card,
@@ -29,6 +30,8 @@ interface TopChannel {
 
 interface TopUser {
   userId: string;
+  username?: string | null;
+  avatarUrl?: string | null;
   count: number;
 }
 
@@ -96,7 +99,8 @@ export default function Stats() {
     () =>
       (stats?.topUsers ?? []).map((item) => ({
         id: item.userId,
-        label: item.userId.slice(-6),
+        label: item.username ? `@${item.username}` : item.userId.slice(-6),
+        avatarUrl: item.avatarUrl,
         count: item.count,
       })),
     [stats],
@@ -232,7 +236,7 @@ export default function Stats() {
           </CardHeader>
           <CardContent>
             {loading ? (
-              <RankListSkeleton />
+              <RankListSkeleton showAvatar={false} />
             ) : (
               <RankList items={topChannels} emptyLabel="No channel activity yet." />
             )}
@@ -287,7 +291,7 @@ function RankList({
   items,
   emptyLabel,
 }: {
-  items: { id: string; label: string; count: number }[];
+  items: { id: string; label: string; avatarUrl?: string | null; count: number }[];
   emptyLabel: string;
 }) {
   const maxCount = Math.max(...items.map((item) => item.count), 1);
@@ -302,38 +306,50 @@ function RankList({
 
   return (
     <div className="flex flex-col gap-3">
-      {items.slice(0, 7).map((item, index) => (
-        <div key={item.id} className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="w-4 shrink-0 text-xs tabular-nums text-muted-foreground">
-                {index + 1}
+      {items.slice(0, 7).map((item, index) => {
+        const initials = item.label.slice(0, 2).toUpperCase();
+        return (
+          <div key={item.id} className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-4 shrink-0 text-xs tabular-nums text-muted-foreground">
+                  {index + 1}
+                </span>
+                {item.avatarUrl !== undefined && (
+                  <Avatar className="size-5 shrink-0">
+                    <AvatarImage src={item.avatarUrl ?? undefined} alt={item.label} />
+                    <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
+                  </Avatar>
+                )}
+                <span className="truncate text-sm font-medium">{item.label}</span>
+              </div>
+              <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                {item.count.toLocaleString()}
               </span>
-              <span className="truncate text-sm font-medium">{item.label}</span>
             </div>
-            <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-              {item.count.toLocaleString()}
-            </span>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary/70 transition-all"
+                style={{ width: `${Math.max((item.count / maxCount) * 100, 4)}%` }}
+              />
+            </div>
           </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-primary/70 transition-all"
-              style={{ width: `${Math.max((item.count / maxCount) * 100, 4)}%` }}
-            />
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
-function RankListSkeleton() {
+function RankListSkeleton({ showAvatar = true }: { showAvatar?: boolean }) {
   return (
     <div className="flex flex-col gap-3">
       {Array.from({ length: 7 }).map((_, i) => (
         <div key={i} className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between gap-2">
-            <Skeleton className="h-4 w-32" />
+            <div className="flex items-center gap-2">
+              {showAvatar && <Skeleton className="size-5 rounded-full" />}
+              <Skeleton className="h-4 w-32" />
+            </div>
             <Skeleton className="h-4 w-10" />
           </div>
           <Skeleton className="h-1.5 w-full rounded-full" />
