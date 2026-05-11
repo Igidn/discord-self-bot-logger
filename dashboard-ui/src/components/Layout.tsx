@@ -12,12 +12,21 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/s
 import { AppSidebar } from './AppSidebar';
 import { TopSearchBar } from './TopSearchBar';
 
+function getSidebarDefaultOpen(): boolean {
+  try {
+    const match = document.cookie.match(/sidebar_state=([^;]+)/);
+    return match ? match[1] === 'true' : true;
+  } catch {
+    return true;
+  }
+}
+
 export function Layout() {
   const location = useLocation();
   const page = getPageMeta(location.pathname);
 
   return (
-    <SidebarProvider defaultOpen>
+    <SidebarProvider defaultOpen={getSidebarDefaultOpen()}>
       <AppSidebar />
       <SidebarInset>
         <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

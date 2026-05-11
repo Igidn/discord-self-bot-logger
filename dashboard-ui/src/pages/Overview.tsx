@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Activity,
   ArrowRight,
   ArrowUpRight,
   Clock3,
@@ -13,7 +12,7 @@ import {
   WifiOff,
 } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,7 +28,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart';
-import { Separator } from '@/components/ui/separator';
+
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import apiClient from '../api/client';
@@ -351,9 +350,7 @@ function MessageRow({ message }: { message: RecentMessage }) {
       className="flex items-start gap-3 px-6 py-3.5 transition-colors hover:bg-muted/50"
     >
       <Avatar className="size-8 shrink-0">
-        {message.author?.avatarUrl ? (
-          <img src={message.author.avatarUrl} alt={username} className="size-full object-cover rounded-full" />
-        ) : null}
+        <AvatarImage src={message.author?.avatarUrl ?? undefined} alt={username} />
         <AvatarFallback className="text-xs">{initials}</AvatarFallback>
       </Avatar>
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">

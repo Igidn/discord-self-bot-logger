@@ -4,10 +4,14 @@ import './index.css';
 import App from './App';
 
 // Default to dark mode; can be toggled by adding/removing the 'dark' class
-const savedTheme = localStorage.getItem('theme');
-if (savedTheme === 'light') {
-  document.documentElement.classList.remove('dark');
-} else {
+try {
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme === 'light') {
+    document.documentElement.classList.remove('dark');
+  } else {
+    document.documentElement.classList.add('dark');
+  }
+} catch {
   document.documentElement.classList.add('dark');
 }
 

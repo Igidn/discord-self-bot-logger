@@ -330,7 +330,7 @@ function RankList({
 function RankListSkeleton() {
   return (
     <div className="flex flex-col gap-3">
-      {Array.from({ length: 5 }).map((_, i) => (
+      {Array.from({ length: 7 }).map((_, i) => (
         <div key={i} className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between gap-2">
             <Skeleton className="h-4 w-32" />
