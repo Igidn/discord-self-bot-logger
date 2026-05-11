@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Save, CheckCircle2 } from 'lucide-react';
+import { Save, CheckCircle2, Plus, X } from 'lucide-react';
 import apiClient from '../api/client';
 import { GuildPicker } from '../components/GuildPicker';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface GuildItem {
@@ -21,6 +22,10 @@ export default function Setup() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // Manual guild ID input
+  const [manualInput, setManualInput] = useState('');
+  const [manualError, setManualError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchGuilds() {
@@ -44,6 +49,44 @@ export default function Setup() {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
+      return next;
+    });
+    setSaved(false);
+  };
+
+  const manualIds = Array.from(selected).filter(
+    (id) => !guilds.some((g) => g.id === id)
+  );
+
+  const addManualId = () => {
+    const trimmed = manualInput.trim();
+    if (!trimmed) {
+      setManualError('Please enter a guild ID');
+      return;
+    }
+    if (selected.has(trimmed)) {
+      setManualError('This guild ID is already in the whitelist');
+      return;
+    }
+    // Basic Discord snowflake validation (17-20 digits)
+    if (!/^\d{17,20}$/.test(trimmed)) {
+      setManualError('Invalid guild ID format (expected 17-20 digits)');
+      return;
+    }
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.add(trimmed);
+      return next;
+    });
+    setManualInput('');
+    setManualError(null);
+    setSaved(false);
+  };
+
+  const removeManualId = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
       return next;
     });
     setSaved(false);
@@ -92,6 +135,54 @@ export default function Setup() {
           </p>
         </div>
       )}
+
+      {/* Manual guild ID input */}
+      <div className="flex flex-col gap-3">
+        <h2 className="text-sm font-medium">Add Guild by ID</h2>
+        <div className="flex items-center gap-3">
+          <Input
+            placeholder="Enter Discord guild ID..."
+            value={manualInput}
+            onChange={(e) => {
+              setManualInput(e.target.value);
+              setManualError(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                addManualId();
+              }
+            }}
+            className="max-w-sm"
+          />
+          <Button onClick={addManualId} size="sm" className="gap-1.5">
+            <Plus className="size-4" />
+            Add to whitelist
+          </Button>
+        </div>
+        {manualError && (
+          <p className="text-xs text-destructive">{manualError}</p>
+        )}
+        {manualIds.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {manualIds.map((id) => (
+              <div
+                key={id}
+                className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1 text-xs font-mono"
+              >
+                {id}
+                <button
+                  onClick={() => removeManualId(id)}
+                  className="text-muted-foreground hover:text-destructive transition-colors"
+                  aria-label={`Remove ${id}`}
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Guild picker grid */}
       {loading ? (

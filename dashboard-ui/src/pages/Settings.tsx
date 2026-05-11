@@ -6,9 +6,13 @@ import {
   RotateCcw,
   Database,
   Clock,
+  Save,
+  CheckCircle2,
 } from 'lucide-react';
 import apiClient from '../api/client';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
 import {
   Card,
   CardContent,
@@ -44,11 +48,28 @@ export default function Settings() {
   const [exportFormat, setExportFormat] = useState<'jsonl' | 'csv' | 'html'>('jsonl');
   const [exportJobId, setExportJobId] = useState<string | null>(null);
 
+  // Editable settings state
+  const [dmEnabled, setDmEnabled] = useState(false);
+  const [dmSaving, setDmSaving] = useState(false);
+  const [dmSaved, setDmSaved] = useState(false);
+  const [dmError, setDmError] = useState<string | null>(null);
+
+  const [retentionDays, setRetentionDays] = useState(365);
+  const [retentionSaving, setRetentionSaving] = useState(false);
+  const [retentionSaved, setRetentionSaved] = useState(false);
+  const [retentionError, setRetentionError] = useState<string | null>(null);
+
   useEffect(() => {
     async function fetchConfig() {
       try {
         const res = await apiClient.get<ConfigData>('/config');
         setConfig(res.data);
+        setDmEnabled(res.data.logging?.logDirectMessages ?? false);
+        setRetentionDays(
+          res.data.logging?.retentionDays !== undefined
+            ? res.data.logging.retentionDays
+            : 365
+        );
       } catch (err) {
         console.error(err);
       } finally {
@@ -57,6 +78,51 @@ export default function Settings() {
     }
     fetchConfig();
   }, []);
+
+  const refreshConfig = async () => {
+    try {
+      const res = await apiClient.get<ConfigData>('/config');
+      setConfig(res.data);
+      setDmEnabled(res.data.logging?.logDirectMessages ?? false);
+      setRetentionDays(
+        res.data.logging?.retentionDays !== undefined
+          ? res.data.logging.retentionDays
+          : 365
+      );
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDmSave = async () => {
+    setDmSaving(true);
+    setDmSaved(false);
+    setDmError(null);
+    try {
+      await apiClient.post('/config/logging/dm', { enabled: dmEnabled });
+      setDmSaved(true);
+      setTimeout(() => setDmSaved(false), 2000);
+    } catch (err: any) {
+      setDmError(err?.response?.data?.error || 'Failed to save');
+    } finally {
+      setDmSaving(false);
+    }
+  };
+
+  const handleRetentionSave = async () => {
+    setRetentionSaving(true);
+    setRetentionSaved(false);
+    setRetentionError(null);
+    try {
+      await apiClient.post('/config/logging/retention', { days: retentionDays });
+      setRetentionSaved(true);
+      setTimeout(() => setRetentionSaved(false), 2000);
+    } catch (err: any) {
+      setRetentionError(err?.response?.data?.error || 'Failed to save');
+    } finally {
+      setRetentionSaving(false);
+    }
+  };
 
   const handleExport = async () => {
     try {
@@ -100,7 +166,7 @@ export default function Settings() {
           </div>
           <div>
             <CardTitle className="text-base">Configuration</CardTitle>
-            <CardDescription>Current runtime settings (read-only)</CardDescription>
+            <CardDescription>Current runtime settings</CardDescription>
           </div>
         </CardHeader>
         <CardContent className="pt-0">
@@ -136,13 +202,39 @@ export default function Settings() {
                 value={String(config?.logging?.guilds?.length ?? 0)}
               />
               <Separator />
-              <ConfigRow
-                label="DM Logging"
-                value={config?.logging?.logDirectMessages ? 'Enabled' : 'Disabled'}
-                badge={{
-                  variant: config?.logging?.logDirectMessages ? 'default' : 'secondary',
-                }}
-              />
+              <div className="flex items-center justify-between py-2.5">
+                <label htmlFor="dm-logging" className="text-sm text-muted-foreground cursor-pointer">
+                  DM Logging
+                </label>
+                <div className="flex items-center gap-3">
+                  <Switch
+                    id="dm-logging"
+                    checked={dmEnabled}
+                    onChange={(e) => {
+                      setDmEnabled(e.target.checked);
+                      setDmSaved(false);
+                    }}
+                  />
+                  <Button
+                    onClick={handleDmSave}
+                    disabled={dmSaving}
+                    size="sm"
+                    className="gap-1.5"
+                  >
+                    <Save className="size-3.5" />
+                    {dmSaving ? 'Saving...' : dmSaved ? 'Saved!' : 'Save'}
+                  </Button>
+                </div>
+              </div>
+              {dmSaved && (
+                <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 pb-1">
+                  <CheckCircle2 className="size-3 shrink-0" />
+                  DM logging setting saved successfully.
+                </div>
+              )}
+              {dmError && (
+                <div className="text-xs text-destructive pb-1">{dmError}</div>
+              )}
             </div>
           )}
         </CardContent>
@@ -164,10 +256,39 @@ export default function Settings() {
             <Skeleton className="h-4 w-32" />
           ) : (
             <>
-              <ConfigRow
-                label="Retention Days"
-                value={String(config?.logging?.retentionDays ?? 365)}
-              />
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-sm text-muted-foreground">Retention Days</span>
+                <div className="flex items-center gap-3">
+                  <Input
+                    type="number"
+                    min={0}
+                    value={retentionDays}
+                    onChange={(e) => {
+                      setRetentionDays(Number(e.target.value));
+                      setRetentionSaved(false);
+                    }}
+                    className="w-24 h-8 text-sm"
+                  />
+                  <Button
+                    onClick={handleRetentionSave}
+                    disabled={retentionSaving}
+                    size="sm"
+                    className="gap-1.5"
+                  >
+                    <Save className="size-3.5" />
+                    {retentionSaving ? 'Saving...' : retentionSaved ? 'Saved!' : 'Save'}
+                  </Button>
+                </div>
+              </div>
+              {retentionSaved && (
+                <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 className="size-3 shrink-0" />
+                  Retention days saved successfully.
+                </div>
+              )}
+              {retentionError && (
+                <div className="text-xs text-destructive">{retentionError}</div>
+              )}
               <p className="text-xs text-muted-foreground pt-1">
                 Messages older than the retention period are automatically purged during the daily
                 cleanup cycle.

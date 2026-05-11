@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { db } from '@/database/index.js';
 import { sql } from 'drizzle-orm';
-import { loadConfig } from '@/config/loader.js';
+import { config, loadConfig } from '@/config/loader.js';
 import { logger } from '@/utils/logger.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -10,7 +10,6 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 let lastVacuumWeek = -1;
 
 export function startRetentionPurger(): void {
-  const config = loadConfig();
   const retentionDays = config.logging.retentionDays;
 
   if (retentionDays <= 0) {
@@ -23,14 +22,14 @@ export function startRetentionPurger(): void {
   // Initial run after 10s, then every 24h
   setTimeout(() => {
     try {
-      runPurge(retentionDays);
+      runPurge();
     } catch (err) {
       logger.error({ err }, 'Scheduled retention purge failed');
     }
   }, 10000);
   setInterval(() => {
     try {
-      runPurge(retentionDays);
+      runPurge();
     } catch (err) {
       logger.error({ err }, 'Scheduled retention purge failed');
     }
@@ -46,9 +45,10 @@ export interface PurgeSummary {
   filesRemoved: number;
 }
 
-export function runPurge(retentionDays: number): PurgeSummary {
+export function runPurge(retentionDaysOverride?: number): PurgeSummary {
+  const retentionDays = retentionDaysOverride ?? config.logging.retentionDays;
   const cutoff = Math.floor((Date.now() - retentionDays * DAY_MS) / 1000);
-  logger.info({ cutoff: new Date(cutoff * 1000).toISOString() }, 'Running retention purge');
+  logger.info({ cutoff: new Date(cutoff * 1000).toISOString(), retentionDays }, 'Running retention purge');
 
   try {
     // Collect attachment files that will become orphaned
@@ -110,8 +110,13 @@ export function runPurge(retentionDays: number): PurgeSummary {
 }
 
 function cleanupOrphans(): void {
-  const config = loadConfig();
-  const attachmentsDir = path.resolve(process.cwd(), config.logging.attachments.path);
+  let currentConfig = config;
+  try {
+    currentConfig = loadConfig();
+  } catch {
+    // keep in-memory config if file is invalid
+  }
+  const attachmentsDir = path.resolve(process.cwd(), currentConfig.logging.attachments.path);
 
   if (!fs.existsSync(attachmentsDir)) {
     return;
