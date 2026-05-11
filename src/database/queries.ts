@@ -89,7 +89,7 @@ export interface OverviewStats {
   totalGuilds: number;
   totalUsers: number;
   topChannels: { channelId: string; count: number }[];
-  topUsers: { userId: string; count: number }[];
+  topUsers: { userId: string; username: string | null; count: number }[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -721,13 +721,14 @@ export function getTopChannels(days: number = 30): { channelId: string; count: n
   `);
 }
 
-export function getTopUsers(days: number = 30): { userId: string; count: number }[] {
+export function getTopUsers(days: number = 30): { userId: string; username: string | null; count: number }[] {
   const sinceSec = Math.floor((Date.now() - days * 24 * 60 * 60 * 1000) / 1000);
-  return db.all<{ userId: string; count: number }>(sql`
-    SELECT author_id AS userId, count(*) AS count
-    FROM messages
-    WHERE created_at >= ${sinceSec}
-    GROUP BY author_id
+  return db.all<{ userId: string; username: string | null; count: number }>(sql`
+    SELECT m.author_id AS userId, u.username AS username, count(*) AS count
+    FROM messages m
+    LEFT JOIN users u ON u.id = m.author_id
+    WHERE m.created_at >= ${sinceSec}
+    GROUP BY m.author_id
     ORDER BY count DESC
     LIMIT 10
   `);

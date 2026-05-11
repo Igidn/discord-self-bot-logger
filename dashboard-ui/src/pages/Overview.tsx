@@ -67,6 +67,7 @@ interface TopChannel {
 
 interface TopUser {
   userId: string;
+  username?: string | null;
   count: number;
 }
 
@@ -141,7 +142,7 @@ export default function Overview() {
 
   const topUsers = (stats?.topUsers ?? []).map((item) => ({
     id: item.userId,
-    label: item.userId.slice(-6),
+    label: item.username ? `@${item.username}` : item.userId.slice(-6),
     count: item.count,
   }));
 
