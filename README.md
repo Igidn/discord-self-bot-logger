@@ -4,8 +4,8 @@ A powerful Discord self-bot that logs messages, events, and server activity to a
 
 > **Warning:** Self-bots violate Discord's Terms of Service. Using a user token may result in account termination. This tool is intended for educational purposes and personal data archival only. Use at your own risk.
 
-> [!Some feature are still unfinished]
-
+> [!NOTE]
+> Some feature are still unfinished.
 
 ---
 
