@@ -357,6 +357,54 @@ logging:
       assert.strictEqual(body.token, '[REDACTED]');
       assert.ok(!('authToken' in body.dashboard));
     });
+
+    it('should update DM logging setting', async () => {
+      const res = await apiFetch('/config/logging/dm', {
+        method: 'POST',
+        body: JSON.stringify({ enabled: true }),
+      });
+      assert.strictEqual(res.status, 200);
+      const body = await res.json();
+      assert.strictEqual(body.success, true);
+      assert.strictEqual(body.logDirectMessages, true);
+
+      // Verify config reflects the change
+      const configRes = await apiFetch('/config');
+      const configBody = await configRes.json();
+      assert.strictEqual(configBody.logging.logDirectMessages, true);
+    });
+
+    it('should reject invalid DM logging payload', async () => {
+      const res = await apiFetch('/config/logging/dm', {
+        method: 'POST',
+        body: JSON.stringify({ enabled: 'yes' }),
+      });
+      assert.strictEqual(res.status, 400);
+    });
+
+    it('should update retention days', async () => {
+      const res = await apiFetch('/config/logging/retention', {
+        method: 'POST',
+        body: JSON.stringify({ days: 30 }),
+      });
+      assert.strictEqual(res.status, 200);
+      const body = await res.json();
+      assert.strictEqual(body.success, true);
+      assert.strictEqual(body.retentionDays, 30);
+
+      // Verify config reflects the change
+      const configRes = await apiFetch('/config');
+      const configBody = await configRes.json();
+      assert.strictEqual(configBody.logging.retentionDays, 30);
+    });
+
+    it('should reject invalid retention days', async () => {
+      const res = await apiFetch('/config/logging/retention', {
+        method: 'POST',
+        body: JSON.stringify({ days: 0 }),
+      });
+      assert.strictEqual(res.status, 400);
+    });
   });
 
   /* ---------------------------------------------------------------- */

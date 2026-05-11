@@ -61,20 +61,41 @@ export function loadConfig(): Config {
 
 export const config = loadConfig();
 
-export function updateConfigGuilds(guildIds: string[]): void {
+function setNestedValue(obj: Record<string, unknown>, path: string, value: unknown): void {
+  const keys = path.split('.');
+  let current: any = obj;
+  for (let i = 0; i < keys.length - 1; i++) {
+    const key = keys[i];
+    if (!current[key] || typeof current[key] !== 'object') {
+      current[key] = {};
+    }
+    current = current[key];
+  }
+  current[keys[keys.length - 1]] = value;
+}
+
+export function updateConfigField(path: string, value: unknown): void {
   let parsed: Record<string, unknown> = {};
   if (fs.existsSync(CONFIG_PATH)) {
     const raw = fs.readFileSync(CONFIG_PATH, 'utf-8');
     parsed = (yaml.load(raw) as Record<string, unknown>) ?? {};
   }
-  const logging = (parsed.logging as Record<string, unknown>) || {};
-  logging.guilds = guildIds;
-  parsed.logging = logging;
+  setNestedValue(parsed, path, value);
   fs.writeFileSync(CONFIG_PATH, yaml.dump(parsed, { lineWidth: -1 }));
   // Update in-memory config so the running process picks up the change immediately
-  (config as unknown as Record<string, unknown>).logging = {
-    ...(config as unknown as Record<string, unknown>).logging as Record<string, unknown>,
-    guilds: guildIds,
-  };
+  setNestedValue(config as unknown as Record<string, unknown>, path, value);
+  logger.info({ path, value }, 'Updated config field');
+}
+
+export function updateConfigGuilds(guildIds: string[]): void {
+  updateConfigField('logging.guilds', guildIds);
   logger.info({ guildIds }, 'Updated guild whitelist in config.yaml');
+}
+
+export function updateConfigDm(value: boolean): void {
+  updateConfigField('logging.logDirectMessages', value);
+}
+
+export function updateConfigRetention(value: number): void {
+  updateConfigField('logging.retentionDays', value);
 }
