@@ -581,7 +581,7 @@ export function getOverviewStats(days: number = 30): OverviewStats {
       count(*) AS count
     FROM messages m
     LEFT JOIN channels c ON c.id = m.channel_id
-    LEFT JOIN guilds g ON g.id = c.guild_id
+    LEFT JOIN guilds g ON g.id = m.guild_id
     WHERE m.created_at >= ${sinceSec}
     GROUP BY m.channel_id
     ORDER BY count DESC
@@ -732,7 +732,7 @@ export function getTopChannels(days: number = 30): { channelId: string; channelN
       count(*) AS count
     FROM messages m
     LEFT JOIN channels c ON c.id = m.channel_id
-    LEFT JOIN guilds g ON g.id = c.guild_id
+    LEFT JOIN guilds g ON g.id = m.guild_id
     WHERE m.created_at >= ${sinceSec}
     GROUP BY m.channel_id
     ORDER BY count DESC
