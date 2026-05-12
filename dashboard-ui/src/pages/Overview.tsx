@@ -62,6 +62,8 @@ interface DailyCount {
 
 interface TopChannel {
   channelId: string;
+  channelName?: string | null;
+  guildIconUrl?: string | null;
   count: number;
 }
 
@@ -137,7 +139,8 @@ export default function Overview() {
 
   const topChannels = (stats?.topChannels ?? []).map((item) => ({
     id: item.channelId,
-    label: `#${item.channelId.slice(-6)}`,
+    label: item.channelName ? `#${item.channelName}` : `#${item.channelId.slice(-6)}`,
+    avatarUrl: item.guildIconUrl,
     count: item.count,
   }));
 
@@ -276,7 +279,7 @@ export default function Overview() {
               </TabsList>
               <TabsContent value="channels" className="mt-0">
                 {loading ? (
-                  <RankListSkeleton showAvatar={false} />
+                  <RankListSkeleton />
                 ) : (
                   <RankList items={topChannels} emptyLabel="No channel activity yet." />
                 )}

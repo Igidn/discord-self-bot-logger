@@ -79,7 +79,7 @@ export interface GuildStats {
   totalReactions: number;
   totalMemberEvents: number;
   totalVoiceEvents: number;
-  topChannels: { channelId: string; count: number }[];
+  topChannels: { channelId: string; channelName: string | null; guildIconUrl: string | null; count: number }[];
   topUsers: { userId: string; count: number }[];
 }
 
@@ -88,7 +88,7 @@ export interface OverviewStats {
   totalMessages: number;
   totalGuilds: number;
   totalUsers: number;
-  topChannels: { channelId: string; count: number }[];
+  topChannels: { channelId: string; channelName: string | null; guildIconUrl: string | null; count: number }[];
   topUsers: { userId: string; username: string | null; count: number }[];
 }
 
@@ -512,11 +512,17 @@ export function getGuildStats(guildId: string): GuildStats {
   const totalVoiceEvents =
     db.all<{ count: number }>(sql`SELECT count(*) AS count FROM voice_events WHERE guild_id = ${guildId}`)[0]?.count ?? 0;
 
-  const topChannels = db.all<{ channelId: string; count: number }>(sql`
-    SELECT channel_id AS channelId, count(*) AS count
-    FROM messages
-    WHERE guild_id = ${guildId}
-    GROUP BY channel_id
+  const topChannels = db.all<{ channelId: string; channelName: string | null; guildIconUrl: string | null; count: number }>(sql`
+    SELECT
+      m.channel_id AS channelId,
+      c.name AS channelName,
+      g.icon_url AS guildIconUrl,
+      count(*) AS count
+    FROM messages m
+    LEFT JOIN channels c ON c.id = m.channel_id
+    LEFT JOIN guilds g ON g.id = m.guild_id
+    WHERE m.guild_id = ${guildId}
+    GROUP BY m.channel_id
     ORDER BY count DESC
     LIMIT 10
   `);
@@ -567,11 +573,17 @@ export function getOverviewStats(days: number = 30): OverviewStats {
     ORDER BY day DESC
   `);
 
-  const topChannels = db.all<{ channelId: string; count: number }>(sql`
-    SELECT channel_id AS channelId, count(*) AS count
-    FROM messages
-    WHERE created_at >= ${sinceSec}
-    GROUP BY channel_id
+  const topChannels = db.all<{ channelId: string; channelName: string | null; guildIconUrl: string | null; count: number }>(sql`
+    SELECT
+      m.channel_id AS channelId,
+      c.name AS channelName,
+      g.icon_url AS guildIconUrl,
+      count(*) AS count
+    FROM messages m
+    LEFT JOIN channels c ON c.id = m.channel_id
+    LEFT JOIN guilds g ON g.id = c.guild_id
+    WHERE m.created_at >= ${sinceSec}
+    GROUP BY m.channel_id
     ORDER BY count DESC
     LIMIT 10
   `);
@@ -710,13 +722,19 @@ export function getDailyMessageCounts(days: number = 30): { day: string; count: 
   `);
 }
 
-export function getTopChannels(days: number = 30): { channelId: string; count: number }[] {
+export function getTopChannels(days: number = 30): { channelId: string; channelName: string | null; guildIconUrl: string | null; count: number }[] {
   const sinceSec = Math.floor((Date.now() - days * 24 * 60 * 60 * 1000) / 1000);
-  return db.all<{ channelId: string; count: number }>(sql`
-    SELECT channel_id AS channelId, count(*) AS count
-    FROM messages
-    WHERE created_at >= ${sinceSec}
-    GROUP BY channel_id
+  return db.all<{ channelId: string; channelName: string | null; guildIconUrl: string | null; count: number }>(sql`
+    SELECT
+      m.channel_id AS channelId,
+      c.name AS channelName,
+      g.icon_url AS guildIconUrl,
+      count(*) AS count
+    FROM messages m
+    LEFT JOIN channels c ON c.id = m.channel_id
+    LEFT JOIN guilds g ON g.id = c.guild_id
+    WHERE m.created_at >= ${sinceSec}
+    GROUP BY m.channel_id
     ORDER BY count DESC
     LIMIT 10
   `);
