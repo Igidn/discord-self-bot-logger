@@ -225,7 +225,7 @@ logging:
       assert.strictEqual(body.data.length, 5);
     });
 
-    it('should get message detail with edits and reactions', async () => {
+    it('should get message detail with author data', async () => {
       const res = await apiFetch('/messages/msg-0');
       if (res.status !== 200) {
         const errBody = await res.json();
@@ -233,11 +233,10 @@ logging:
       }
       assert.strictEqual(res.status, 200);
       const body = await res.json();
-      assert.strictEqual(body.message.id, 'msg-0');
-      assert.ok(Array.isArray(body.edits));
-      assert.ok(Array.isArray(body.reactions));
-      assert.strictEqual(body.edits.length, 1);
-      assert.strictEqual(body.reactions.length, 1);
+      assert.strictEqual(body.id, 'msg-0');
+      assert.strictEqual(body.authorId, 'user-1');
+      assert.ok(body.author);
+      assert.strictEqual(body.author.username, 'Alice');
     });
   });
 
