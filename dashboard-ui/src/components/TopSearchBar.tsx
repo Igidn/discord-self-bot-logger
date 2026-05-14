@@ -92,7 +92,7 @@ export function TopSearchBar() {
 
         <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
           <p>`hello in:1241473215264460885` searches for hello in one channel.</p>
-          <p>`deploy from:123 has:file is:edited` combines text and filters.</p>
+          <p>`deploy from:username has:file is:edited` combines text and filters.</p>
         </div>
       </SheetContent>
     </Sheet>
