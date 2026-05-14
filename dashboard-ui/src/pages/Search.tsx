@@ -127,7 +127,7 @@ export default function Search() {
                 </div>
                 <div className="rounded-lg border bg-muted/30 p-3">
                   <p className="font-medium text-foreground">Author</p>
-                  <p>Use `from:1234567890` to filter by one user.</p>
+                  <p>Use `from:1234567890` or `from:username` to filter by one user.</p>
                 </div>
                 <div className="rounded-lg border bg-muted/30 p-3">
                   <p className="font-medium text-foreground">Flags</p>

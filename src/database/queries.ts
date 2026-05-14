@@ -332,9 +332,58 @@ function buildClauseSQL(clause: FilterClause): SQL | undefined {
     case 'channelId':
       col = schema.messages.channelId;
       break;
-    case 'authorId':
+    case 'authorId': {
+      const isSnowflake = (v: string) => /^\d{17,20}$/.test(v);
+
+      if (op === 'eq' || op === 'neq') {
+        if (typeof value === 'string' && !isSnowflake(value)) {
+          const matchingUsers = db.all<{ id: string }>(
+            sql`SELECT id FROM users WHERE lower(username) = lower(${value})`
+          );
+          const ids = matchingUsers.map((u) => u.id);
+          if (ids.length === 1) {
+            return op === 'eq' ? eq(schema.messages.authorId, ids[0]) : ne(schema.messages.authorId, ids[0]);
+          } else if (ids.length > 1) {
+            return op === 'eq' ? inArray(schema.messages.authorId, ids) : notInArray(schema.messages.authorId, ids);
+          }
+        }
+      }
+
+      if (op === 'in' || op === 'nin') {
+        const values = Array.isArray(value) ? value : [value];
+        const allIds: string[] = [];
+        for (const v of values) {
+          const s = String(v);
+          if (isSnowflake(s)) {
+            allIds.push(s);
+          } else {
+            const matchingUsers = db.all<{ id: string }>(
+              sql`SELECT id FROM users WHERE lower(username) = lower(${s})`
+            );
+            allIds.push(...matchingUsers.map((u) => u.id));
+          }
+        }
+        if (allIds.length > 0) {
+          return op === 'in' ? inArray(schema.messages.authorId, allIds) : notInArray(schema.messages.authorId, allIds);
+        }
+        return undefined;
+      }
+
+      if (op === 'contains') {
+        if (typeof value === 'string') {
+          const matchingUsers = db.all<{ id: string }>(
+            sql`SELECT id FROM users WHERE lower(username) LIKE lower(${'%' + value + '%'})`
+          );
+          const ids = matchingUsers.map((u) => u.id);
+          if (ids.length > 0) {
+            return inArray(schema.messages.authorId, ids);
+          }
+        }
+      }
+
       col = schema.messages.authorId;
       break;
+    }
     case 'content':
       col = schema.messages.content;
       break;
