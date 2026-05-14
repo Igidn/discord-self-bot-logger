@@ -265,7 +265,7 @@ function coerceToDate(v: unknown): Date {
   return new Date(String(v));
 }
 
-function buildClauseSQL(clause: FilterClause): SQL | undefined {
+export function buildClauseSQL(clause: FilterClause): SQL | undefined {
   const { field, op } = clause;
   let { value } = clause;
 
@@ -346,27 +346,37 @@ function buildClauseSQL(clause: FilterClause): SQL | undefined {
           } else if (ids.length > 1) {
             return op === 'eq' ? inArray(schema.messages.authorId, ids) : notInArray(schema.messages.authorId, ids);
           }
+          // No users matched this username
+          return op === 'eq' ? sql`1=0` : sql`1=1`;
         }
       }
 
       if (op === 'in' || op === 'nin') {
         const values = Array.isArray(value) ? value : [value];
-        const allIds: string[] = [];
+        const snowflakes: string[] = [];
+        const usernames: string[] = [];
+
         for (const v of values) {
           const s = String(v);
           if (isSnowflake(s)) {
-            allIds.push(s);
+            snowflakes.push(s);
           } else {
-            const matchingUsers = db.all<{ id: string }>(
-              sql`SELECT id FROM users WHERE lower(username) = lower(${s})`
-            );
-            allIds.push(...matchingUsers.map((u) => u.id));
+            usernames.push(s);
           }
         }
-        if (allIds.length > 0) {
-          return op === 'in' ? inArray(schema.messages.authorId, allIds) : notInArray(schema.messages.authorId, allIds);
+
+        if (usernames.length > 0) {
+          const matchingUsers = db.all<{ id: string }>(
+            sql`SELECT id FROM users WHERE lower(username) IN (${sql.join(usernames.map((u) => sql`lower(${u})`), sql`, `)})`
+          );
+          snowflakes.push(...matchingUsers.map((u) => u.id));
         }
-        return undefined;
+
+        if (snowflakes.length > 0) {
+          return op === 'in' ? inArray(schema.messages.authorId, snowflakes) : notInArray(schema.messages.authorId, snowflakes);
+        }
+        // No users matched any of the provided values
+        return op === 'in' ? sql`1=0` : sql`1=1`;
       }
 
       if (op === 'contains') {
@@ -378,6 +388,8 @@ function buildClauseSQL(clause: FilterClause): SQL | undefined {
           if (ids.length > 0) {
             return inArray(schema.messages.authorId, ids);
           }
+          // No users matched this username substring
+          return sql`1=0`;
         }
       }
 

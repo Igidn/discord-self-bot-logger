@@ -16,6 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { io as SocketIOClient } from 'socket.io-client';
+import * as schema from '../src/database/schema.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const TEST_DB = path.join(__dirname, 'test-logs.db');
@@ -481,6 +482,60 @@ logging:
       assert.strictEqual(evaluateFilter(message, { field: 'content', op: 'contains', value: 'world' }), true);
       // hasAttachment operator checks message.attachments array length
       assert.strictEqual(evaluateFilter(message, { field: 'attachments', op: 'hasAttachment' }), true);
+    });
+  });
+
+  describe('Username Resolution in Filters', () => {
+    it('should resolve existing username to user ID (eq)', async () => {
+      const { buildClauseSQL } = await import('../src/database/queries.js');
+      const clause = buildClauseSQL({ field: 'authorId', op: 'eq', value: 'Alice' });
+      assert.ok(clause);
+      const rows = dbModule.db.select().from(schema.messages).where(clause).all();
+      assert.ok(rows.length > 0);
+      assert.ok(rows.every((m: any) => m.authorId === 'user-1'));
+    });
+
+    it('should return no results for non-existent username (eq)', async () => {
+      const { buildClauseSQL } = await import('../src/database/queries.js');
+      const clause = buildClauseSQL({ field: 'authorId', op: 'eq', value: 'NonExistentUser12345' });
+      assert.ok(clause);
+      const rows = dbModule.db.select().from(schema.messages).where(clause).all();
+      assert.strictEqual(rows.length, 0);
+    });
+
+    it('should return no results when all usernames in in-filter are non-existent', async () => {
+      const { buildClauseSQL } = await import('../src/database/queries.js');
+      const clause = buildClauseSQL({ field: 'authorId', op: 'in', value: ['NonExistentUser12345', 'AnotherFakeUser'] });
+      assert.ok(clause);
+      const rows = dbModule.db.select().from(schema.messages).where(clause).all();
+      assert.strictEqual(rows.length, 0);
+    });
+
+    it('should return all results when all usernames in nin-filter are non-existent', async () => {
+      const { buildClauseSQL } = await import('../src/database/queries.js');
+      const clause = buildClauseSQL({ field: 'authorId', op: 'nin', value: ['NonExistentUser12345', 'AnotherFakeUser'] });
+      assert.ok(clause);
+      const rows = dbModule.db.select().from(schema.messages).where(clause).all();
+      // nin with no matches should be a no-op (1=1), returning all messages
+      const allMessages = dbModule.db.select().from(schema.messages).all();
+      assert.strictEqual(rows.length, allMessages.length);
+    });
+
+    it('should return no results for non-existent username (contains)', async () => {
+      const { buildClauseSQL } = await import('../src/database/queries.js');
+      const clause = buildClauseSQL({ field: 'authorId', op: 'contains', value: 'NonExistentUser12345' });
+      assert.ok(clause);
+      const rows = dbModule.db.select().from(schema.messages).where(clause).all();
+      assert.strictEqual(rows.length, 0);
+    });
+
+    it('should resolve mixed snowflakes and usernames in in-filter', async () => {
+      const { buildClauseSQL } = await import('../src/database/queries.js');
+      const clause = buildClauseSQL({ field: 'authorId', op: 'in', value: ['user-1', 'Bob'] });
+      assert.ok(clause);
+      const rows = dbModule.db.select().from(schema.messages).where(clause).all();
+      assert.ok(rows.length > 0);
+      assert.ok(rows.every((m: any) => m.authorId === 'user-1' || m.authorId === 'user-2'));
     });
   });
 });
