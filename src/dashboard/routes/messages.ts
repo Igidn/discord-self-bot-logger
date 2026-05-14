@@ -3,12 +3,11 @@ import z from 'zod';
 import { eq } from 'drizzle-orm';
 import {
   getMessages,
-  getMessageById,
   getMessageEdits,
   getMessageReactions,
 } from '@/database/queries.js';
 import { db } from '@/database/index.js';
-import { attachments } from '@/database/schema.js';
+import { attachments, messages, users } from '@/database/schema.js';
 import { logger } from '@/utils/logger.js';
 
 const router = Router();
@@ -50,12 +49,30 @@ router.get('/', async (req, res, next) => {
 
 router.get('/:id', async (req, res, next) => {
   try {
-    const message = await getMessageById(req.params.id);
+    const message = db
+      .select()
+      .from(messages)
+      .where(eq(messages.id, req.params.id))
+      .get();
     if (!message) {
       res.status(404).json({ error: 'Message not found' });
       return;
     }
-    res.json(message);
+
+    const author =
+      message.authorId && message.authorId !== 'unknown'
+        ? db
+            .select({
+              id: users.id,
+              username: users.username,
+              avatarUrl: users.avatarUrl,
+            })
+            .from(users)
+            .where(eq(users.id, message.authorId))
+            .get()
+        : null;
+
+    res.json({ ...message, author: author ?? null });
   } catch (err) {
     next(err);
   }
