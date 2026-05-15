@@ -1,3 +1,4 @@
+import { Presence } from 'discord.js-selfbot-v13';
 import { sqlite } from '../../database/index.js';
 import { broadcaster } from '../../dashboard/socket/broadcaster.js';
 
@@ -36,4 +37,21 @@ export function recordPresenceChange(
     broadcaster.toGuild(guildId, 'presence:update', payload);
   }
   broadcaster.toGlobal('presence:update', payload);
+}
+
+/**
+ * Handle discord.js-selfbot-v13 `presenceUpdate` events.
+ * Discord pushes these after we subscribe to specific members
+ * via GUILD_SUBSCRIPTIONS_BULK.
+ */
+export function handlePresenceUpdate(_oldPresence: Presence | null, newPresence: Presence) {
+  if (!newPresence) return;
+
+  const guildId = newPresence.guild?.id ?? null;
+  const userId = newPresence.userId;
+  const status = newPresence.status ?? null;
+  const clientStatus = newPresence.clientStatus ? JSON.stringify(newPresence.clientStatus) : null;
+  const activities = newPresence.activities?.length ? JSON.stringify(newPresence.activities) : null;
+
+  recordPresenceChange(guildId, userId, status, clientStatus, activities);
 }

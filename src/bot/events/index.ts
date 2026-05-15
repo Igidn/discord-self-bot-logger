@@ -29,6 +29,7 @@ import {
   handleThreadUpdate,
   handleThreadDelete,
 } from './guildAudit.js';
+import { handlePresenceUpdate } from './presence.js';
 
 export function registerEvents(client: Client, db: any) {
   if (config.logging.events.messages) {
@@ -85,5 +86,7 @@ export function registerEvents(client: Client, db: any) {
     client.on('threadDelete', (...args) => handleThreadDelete(client, db, ...args));
   }
 
-
+  if (config.logging.presence.enabled) {
+    client.on('presenceUpdate', (...args) => handlePresenceUpdate(...args));
+  }
 }
