@@ -31,7 +31,6 @@ export const configSchema = z.object({
       channelChanges: z.boolean().default(true),
       roleChanges: z.boolean().default(true),
       threads: z.boolean().default(true),
-      invites: z.boolean().default(true),
       attachments: z.boolean().default(true),
     }).default({}),
 

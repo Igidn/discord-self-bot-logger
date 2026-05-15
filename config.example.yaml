@@ -24,7 +24,6 @@ logging:
     channelChanges: true
     roleChanges: true
     threads: true
-    invites: true
     attachments: true
 
   # Retention in days

@@ -29,8 +29,6 @@ import {
   handleThreadCreate,
   handleThreadUpdate,
   handleThreadDelete,
-  handleInviteCreate,
-  handleInviteDelete,
 } from './guildAudit.js';
 
 export function registerEvents(client: Client, db: any) {
@@ -92,8 +90,5 @@ export function registerEvents(client: Client, db: any) {
     client.on('threadDelete', (...args) => handleThreadDelete(client, db, ...args));
   }
 
-  if (config.logging.events.invites) {
-    client.on('inviteCreate', (...args) => handleInviteCreate(client, db, ...args));
-    client.on('inviteDelete', (...args) => handleInviteDelete(client, db, ...args));
-  }
+
 }
