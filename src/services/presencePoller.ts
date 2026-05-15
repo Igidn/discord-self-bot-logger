@@ -14,7 +14,7 @@ function getTopChatters(guildId: string, limit: number): string[] {
       FROM messages
       WHERE guild_id = ?
       GROUP BY author_id
-      ORDER BY COUNT(*) DESC
+      ORDER BY COUNT(*) DESC, author_id DESC
       LIMIT ?
     `)
     .pluck()

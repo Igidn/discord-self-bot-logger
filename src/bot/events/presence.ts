@@ -1,4 +1,4 @@
-import { Presence } from 'discord.js-selfbot-v13';
+import { Client, Presence } from 'discord.js-selfbot-v13';
 import { sqlite } from '../../database/index.js';
 import { broadcaster } from '../../dashboard/socket/broadcaster.js';
 
@@ -44,7 +44,12 @@ export function recordPresenceChange(
  * Discord pushes these after we subscribe to specific members
  * via GUILD_SUBSCRIPTIONS_BULK.
  */
-export function handlePresenceUpdate(_oldPresence: Presence | null, newPresence: Presence) {
+export function handlePresenceUpdate(
+  _client: Client,
+  _db: any,
+  _oldPresence: Presence | null,
+  newPresence: Presence
+) {
   if (!newPresence) return;
 
   const guildId = newPresence.guild?.id ?? null;
@@ -52,6 +57,28 @@ export function handlePresenceUpdate(_oldPresence: Presence | null, newPresence:
   const status = newPresence.status ?? null;
   const clientStatus = newPresence.clientStatus ? JSON.stringify(newPresence.clientStatus) : null;
   const activities = newPresence.activities?.length ? JSON.stringify(newPresence.activities) : null;
+
+  // Lightweight deduplication: skip if state hasn't changed from our last record
+  if (guildId) {
+    const latest = sqlite
+      .prepare(`
+        SELECT status, client_status, activities_json
+        FROM latest_presences
+        WHERE guild_id = ? AND user_id = ?
+      `)
+      .get(guildId, userId) as
+      | { status: string | null; client_status: string | null; activities_json: string | null }
+      | undefined;
+
+    if (
+      latest &&
+      latest.status === status &&
+      latest.client_status === clientStatus &&
+      latest.activities_json === activities
+    ) {
+      return;
+    }
+  }
 
   recordPresenceChange(guildId, userId, status, clientStatus, activities);
 }

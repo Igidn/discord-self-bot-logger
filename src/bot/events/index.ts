@@ -87,6 +87,6 @@ export function registerEvents(client: Client, db: any) {
   }
 
   if (config.logging.presence.enabled) {
-    client.on('presenceUpdate', (...args) => handlePresenceUpdate(...args));
+    client.on('presenceUpdate', (...args) => handlePresenceUpdate(client, db, ...args));
   }
 }
