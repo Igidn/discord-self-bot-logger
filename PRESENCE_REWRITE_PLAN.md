@@ -80,21 +80,63 @@ This prevents parallel `guild.members.fetch()` calls, which is critical for self
 
 Responsibilities:
 1. On a configurable interval (default 60s), iterate whitelisted guilds
-2. For each guild, enqueue a fetch:
-   ```typescript
-   await guild.members.fetch({ withPresences: true });
-   ```
+2. For each guild, determine fetch strategy based on `largeGuildThreshold`
 3. Compare each member's `member.presence` against `latestPresences` DB row
 4. If changed (status, clientStatus, or activities differ):
    - Insert into `presenceUpdates` (history)
    - Upsert `latestPresences`
    - Call `broadcaster.toGuild(...)` with the diff payload
 
-**Key behaviors:**
+#### Fetch Strategy
+
+`largeGuildThreshold` is a **mode switch**, not an on/off switch:
+
+| Guild Size | Behavior |
+|---|---|
+| **≤ threshold** (e.g. 1,000) | Full fetch: `guild.members.fetch({ withPresences: true })` |
+| **> threshold** | **Priority-only fetch**: only query users in the priority list |
+
+**Why?** On a 50,000-member server, fetching all members with a user token will take dozens of paginated API requests, hit aggressive rate limits, and potentially flag the account. The threshold prevents that while still tracking the users that matter.
+
+#### Priority System
+
+When a guild exceeds the threshold, the poller builds a **priority user list** and fetches only those members in batches:
+
+**Priority tier list** (in order of importance):
+1. **Message authors** — `SELECT DISTINCT author_id FROM messages WHERE guild_id = ?`
+2. **Currently tracked users** — anyone already in `latest_presences` for this guild (so we don't drop someone mid-tracking)
+3. *(Optional future)* **Friends list** — `client.user.friends.cache`
+
+**Batch fetching:**
+```typescript
+const batches = chunk(priorityIds, 100); // Discord bulk limit
+for (const batch of batches) {
+  await queue.add(() => 
+    guild.members.fetch({ user: batch, withPresences: true })
+  );
+}
+```
+
+**Priority cache refresh:** Rebuild the priority list every ~10 minutes (not every poll cycle) to avoid repeated DB scans:
+```typescript
+function refreshPriorityCache(guildId: string) {
+  const rows = sqlite.prepare(`
+    SELECT DISTINCT author_id FROM messages WHERE guild_id = ?
+  `).all(guildId);
+  
+  const tracked = sqlite.prepare(`
+    SELECT user_id FROM latest_presences WHERE guild_id = ?
+  `).all(guildId);
+  
+  priorityCache.set(guildId, [...new Set([...rows, ...tracked])]);
+}
+```
+
+#### Key behaviors
 - Use the `AsyncQueue` from 2.2 — never run fetches in parallel
-- Add a `largeGuildThreshold` config: if `guild.memberCount > threshold`, skip or reduce frequency to avoid rate limits
 - On `client.ready`, run one initial hydration pass before starting the interval
 - Gracefully handle `DiscordAPIError` / 429 by pausing the queue
+- `maxUsersPerGuild` acts as a hard cap on the priority list size (safety valve)
 
 ---
 
@@ -152,6 +194,11 @@ presence: z.object({
   enabled: z.boolean().default(true),
   intervalSeconds: z.number().int().min(10).default(60),
   largeGuildThreshold: z.number().int().min(0).default(1000),
+  priority: z.object({
+    messageAuthors: z.boolean().default(true),
+    trackedUsers: z.boolean().default(true),
+    maxUsersPerGuild: z.number().int().min(0).default(500),
+  }).default({}),
 }).default({}),
 ```
 
@@ -180,6 +227,10 @@ presence:
   enabled: true
   intervalSeconds: 60
   largeGuildThreshold: 1000
+  priority:
+    messageAuthors: true
+    trackedUsers: true
+    maxUsersPerGuild: 500
 ```
 
 ---
@@ -207,6 +258,19 @@ No code changes required here beyond removing invites (done in 1.1).
 
 ---
 
+## Behavior Matrix
+
+| Scenario | What happens |
+|---|---|
+| Small guild (500 members) | Fetches all 500 members every 60s |
+| Large guild (10k members) | Builds priority list from message DB, fetches only active chatters (~200 users) every 60s |
+| New user sends a message | Added to priority cache on next refresh (~10 min) |
+| User was being tracked, then goes quiet | Kept in priority list if `trackedUsers: true` |
+| Threshold = 0 | Always priority mode (never full fetch) |
+| Threshold = 999999 | Always full fetch |
+
+---
+
 ## Execution Order
 
 | Step | Task | File(s) |
@@ -227,16 +291,16 @@ No code changes required here beyond removing invites (done in 1.1).
 
 | System | Change |
 |--------|--------|
-| **Presence tracking** | Full rewrite: event-driven → polling + diff |
+| **Presence tracking** | Full rewrite: event-driven → polling + diff + priority queue |
 | **Client intents** | Removed (bot-only concept) |
 | **Invite events** | Removed (unreliable on user accounts) |
-| **Message events** | No changes |
+| **Message events** | No changes (but now feed into presence priority cache) |
 | **Reaction events** | No changes |
 | **Voice events** | No changes |
 | **Member events** | No changes (event-driven still works) |
 | **Guild audit** | Kept, documented limitation on actor tracking |
 | **Dashboard / broadcaster** | No structural changes |
-| **Config** | New `presence` object, removed `invites` |
+| **Config** | New `presence` object with `priority` sub-object, removed `invites` |
 | **Database** | New `latest_presences` table |
 
-**Estimated scope:** ~300–400 lines of new code (poller + queue), ~50 lines of deletions (invites + intents), and minor config edits.
+**Estimated scope:** ~400–500 lines of new code (poller + queue + priority cache), ~50 lines of deletions (invites + intents), and minor config edits.
