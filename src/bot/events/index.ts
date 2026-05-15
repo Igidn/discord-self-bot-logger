@@ -60,7 +60,7 @@ export function registerEvents(client: Client, db: any) {
     client.on('guildMemberUpdate', (...args) => handleGuildMemberUpdate(client, db, ...args));
   }
 
-  if (config.logging.events.presence) {
+  if (config.logging.presence.enabled) {
     client.on('presenceUpdate', (...args) => handlePresenceUpdate(client, db, ...args));
   }
 

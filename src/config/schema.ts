@@ -25,7 +25,6 @@ export const configSchema = z.object({
       messageDeletes: z.boolean().default(true),
       reactions: z.boolean().default(true),
       members: z.boolean().default(true),
-      presence: z.boolean().default(true),
       voice: z.boolean().default(true),
       guildChanges: z.boolean().default(true),
       channelChanges: z.boolean().default(true),
@@ -36,6 +35,18 @@ export const configSchema = z.object({
 
     /** Retention in days */
     retentionDays: z.number().int().positive().default(365),
+
+    /** Presence polling settings */
+    presence: z.object({
+      enabled: z.boolean().default(true),
+      intervalSeconds: z.number().int().min(10).default(60),
+      largeGuildThreshold: z.number().int().min(0).default(1000),
+      priority: z.object({
+        messageAuthors: z.boolean().default(true),
+        trackedUsers: z.boolean().default(true),
+        maxUsersPerGuild: z.number().int().min(0).default(500),
+      }).default({}),
+    }).default({}),
 
     /** Attachment download & compression (image/* only) */
     attachments: z.object({

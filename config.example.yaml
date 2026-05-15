@@ -26,6 +26,15 @@ logging:
     threads: true
     attachments: true
 
+  presence:
+    enabled: true
+    intervalSeconds: 60
+    largeGuildThreshold: 1000
+    priority:
+      messageAuthors: true
+      trackedUsers: true
+      maxUsersPerGuild: 500
+
   # Retention in days
   retentionDays: 365
 
