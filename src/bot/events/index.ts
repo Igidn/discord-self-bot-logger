@@ -16,7 +16,6 @@ import {
   handleGuildBanRemove,
   handleGuildMemberUpdate,
 } from './members.js';
-import { handlePresenceUpdate } from './presence.js';
 import { handleVoiceStateUpdate } from './voice.js';
 import {
   handleChannelCreate,
@@ -58,10 +57,6 @@ export function registerEvents(client: Client, db: any) {
     client.on('guildBanAdd', (...args) => handleGuildBanAdd(client, db, ...args));
     client.on('guildBanRemove', (...args) => handleGuildBanRemove(client, db, ...args));
     client.on('guildMemberUpdate', (...args) => handleGuildMemberUpdate(client, db, ...args));
-  }
-
-  if (config.logging.presence.enabled) {
-    client.on('presenceUpdate', (...args) => handlePresenceUpdate(client, db, ...args));
   }
 
   if (config.logging.events.voice) {
