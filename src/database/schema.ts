@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, index, primaryKey } from 'drizzle-orm/sqlite-core';
 import { relations } from 'drizzle-orm';
 
 /* ------------------------------------------------------------------ */
@@ -131,6 +131,17 @@ export const presenceUpdates = sqliteTable('presence_updates', {
   updatedAt: integer('updated_at', { mode: 'timestamp' }),
 }, (table) => ({
   idxPresenceUser: index('idx_presence_user').on(table.userId, table.updatedAt),
+}));
+
+export const latestPresences = sqliteTable('latest_presences', {
+  guildId: text('guild_id').notNull(),
+  userId: text('user_id').notNull(),
+  status: text('status'),
+  clientStatus: text('client_status'),
+  activitiesJson: text('activities_json'),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.guildId, table.userId] }),
 }));
 
 export const voiceEvents = sqliteTable('voice_events', {
