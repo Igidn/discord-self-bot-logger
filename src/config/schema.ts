@@ -36,16 +36,11 @@ export const configSchema = z.object({
     /** Retention in days */
     retentionDays: z.number().int().positive().default(365),
 
-    /** Presence polling settings */
+    /** Presence subscription settings */
     presence: z.object({
       enabled: z.boolean().default(true),
       intervalSeconds: z.number().int().min(10).default(60),
-      largeGuildThreshold: z.number().int().min(0).default(1000),
-      priority: z.object({
-        messageAuthors: z.boolean().default(true),
-        trackedUsers: z.boolean().default(true),
-        maxUsersPerGuild: z.number().int().min(0).default(500),
-      }).default({}),
+      maxSubscriptionUsers: z.number().int().min(1).default(300),
     }).default({}),
 
     /** Attachment download & compression (image/* only) */
