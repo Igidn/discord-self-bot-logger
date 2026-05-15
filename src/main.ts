@@ -5,6 +5,7 @@ import { startDashboardServer } from "@/dashboard/server.js";
 import { client, startBot } from "@/bot/client.js";
 import { db } from "@/database/index.js";
 import { startRetentionPurger } from "@/services/retentionPurger.js";
+import { startPresencePoller } from "@/services/presencePoller.js";
 import { logger } from "@/utils/logger.js";
 import type { Server as HttpServer } from "node:http";
 
@@ -19,6 +20,13 @@ async function main(): Promise<void> {
   ) as HttpServer;
   startRetentionPurger();
   logger.info("Logging in to Discord...");
+
+  // Hydrate presence data immediately on first ready
+  let stopPresencePoller: (() => void) | undefined;
+  client.once("ready", async () => {
+    stopPresencePoller = startPresencePoller(client, { immediate: true });
+  });
+
   await startBot(db);
 
   logger.info(
@@ -43,6 +51,15 @@ async function main(): Promise<void> {
       logger.info("Dashboard server closed");
     } catch (err) {
       logger.error({ err }, "Error closing dashboard server");
+    }
+
+    try {
+      if (stopPresencePoller) {
+        stopPresencePoller();
+        logger.info("Presence poller stopped");
+      }
+    } catch (err) {
+      logger.error({ err }, "Error stopping presence poller");
     }
 
     try {

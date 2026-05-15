@@ -1,4 +1,4 @@
-import { Client, Channel, Role, Guild, ThreadChannel, Invite } from 'discord.js-selfbot-v13';
+import { Client, Channel, Role, Guild, ThreadChannel } from 'discord.js-selfbot-v13';
 import { sqlite } from '../../database/index.js';
 import { logger } from '../../utils/logger.js';
 import { requireGuild } from '../guildFilter.js';
@@ -220,51 +220,6 @@ async function onThreadDelete(client: Client, _db: any, thread: ThreadChannel) {
   }
 }
 
-async function onInviteCreate(client: Client, _db: any, invite: Invite) {
-  try {
-    const guildId = invite.guild?.id ?? null;
-    if (!guildId) return;
-
-    const createdAt = Math.floor(Date.now() / 1000);
-
-    sqlite.prepare(`
-      INSERT INTO guild_audit (guild_id, action_type, target_id, target_type, user_id, changes_json, reason, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      guildId,
-      'INVITE_CREATE',
-      invite.code,
-      'INVITE',
-      invite.inviter?.id ?? null,
-      JSON.stringify({ maxUses: invite.maxUses, maxAge: invite.maxAge, temporary: invite.temporary }),
-      null,
-      createdAt
-    );
-
-    broadcaster.toGuild(guildId, 'guild:audit', { guildId, actionType: 'INVITE_CREATE', targetId: invite.code, createdAt });
-  } catch (err) {
-    logger.error({ err }, 'Error in inviteCreate handler');
-  }
-}
-
-async function onInviteDelete(client: Client, _db: any, invite: Invite) {
-  try {
-    const guildId = invite.guild?.id ?? null;
-    if (!guildId) return;
-
-    const createdAt = Math.floor(Date.now() / 1000);
-
-    sqlite.prepare(`
-      INSERT INTO guild_audit (guild_id, action_type, target_id, target_type, user_id, changes_json, reason, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(guildId, 'INVITE_DELETE', invite.code, 'INVITE', null, null, null, createdAt);
-
-    broadcaster.toGuild(guildId, 'guild:audit', { guildId, actionType: 'INVITE_DELETE', targetId: invite.code, createdAt });
-  } catch (err) {
-    logger.error({ err }, 'Error in inviteDelete handler');
-  }
-}
-
 export const handleChannelCreate = requireGuild(onChannelCreate);
 export const handleChannelUpdate = requireGuild(onChannelUpdate);
 export const handleChannelDelete = requireGuild(onChannelDelete);
@@ -275,5 +230,4 @@ export const handleGuildUpdate = requireGuild(onGuildUpdate);
 export const handleThreadCreate = requireGuild(onThreadCreate);
 export const handleThreadUpdate = requireGuild(onThreadUpdate);
 export const handleThreadDelete = requireGuild(onThreadDelete);
-export const handleInviteCreate = requireGuild(onInviteCreate);
-export const handleInviteDelete = requireGuild(onInviteDelete);
+

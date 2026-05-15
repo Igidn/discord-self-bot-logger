@@ -42,6 +42,19 @@ export function loadConfig(): Config {
     database: { ...fileDatabase },
   };
 
+  // Migrate legacy logging.events.presence to logging.presence.enabled
+  const fileEvents = fileLogging.events as Record<string, unknown> | undefined;
+  if (fileEvents && 'presence' in fileEvents) {
+    const legacyPresence = fileEvents.presence;
+    const loggingMerged = merged.logging as Record<string, unknown>;
+    const presenceMerged = (loggingMerged.presence as Record<string, unknown>) || {};
+    loggingMerged.presence = {
+      ...presenceMerged,
+      enabled: legacyPresence,
+    };
+    logger.warn('Migrated legacy config key logging.events.presence to logging.presence.enabled');
+  }
+
   const result = configSchema.safeParse(merged);
 
   if (!result.success) {

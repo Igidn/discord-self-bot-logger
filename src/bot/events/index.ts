@@ -16,7 +16,6 @@ import {
   handleGuildBanRemove,
   handleGuildMemberUpdate,
 } from './members.js';
-import { handlePresenceUpdate } from './presence.js';
 import { handleVoiceStateUpdate } from './voice.js';
 import {
   handleChannelCreate,
@@ -29,8 +28,6 @@ import {
   handleThreadCreate,
   handleThreadUpdate,
   handleThreadDelete,
-  handleInviteCreate,
-  handleInviteDelete,
 } from './guildAudit.js';
 
 export function registerEvents(client: Client, db: any) {
@@ -62,10 +59,6 @@ export function registerEvents(client: Client, db: any) {
     client.on('guildMemberUpdate', (...args) => handleGuildMemberUpdate(client, db, ...args));
   }
 
-  if (config.logging.events.presence) {
-    client.on('presenceUpdate', (...args) => handlePresenceUpdate(client, db, ...args));
-  }
-
   if (config.logging.events.voice) {
     client.on('voiceStateUpdate', (...args) => handleVoiceStateUpdate(client, db, ...args));
   }
@@ -92,8 +85,5 @@ export function registerEvents(client: Client, db: any) {
     client.on('threadDelete', (...args) => handleThreadDelete(client, db, ...args));
   }
 
-  if (config.logging.events.invites) {
-    client.on('inviteCreate', (...args) => handleInviteCreate(client, db, ...args));
-    client.on('inviteDelete', (...args) => handleInviteDelete(client, db, ...args));
-  }
+
 }
