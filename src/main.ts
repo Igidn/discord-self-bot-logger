@@ -22,8 +22,9 @@ async function main(): Promise<void> {
   logger.info("Logging in to Discord...");
 
   // Hydrate presence data immediately on first ready
+  let stopPresencePoller: (() => void) | undefined;
   client.once("ready", async () => {
-    await startPresencePoller(client, { immediate: true });
+    stopPresencePoller = startPresencePoller(client, { immediate: true });
   });
 
   await startBot(db);
@@ -50,6 +51,15 @@ async function main(): Promise<void> {
       logger.info("Dashboard server closed");
     } catch (err) {
       logger.error({ err }, "Error closing dashboard server");
+    }
+
+    try {
+      if (stopPresencePoller) {
+        stopPresencePoller();
+        logger.info("Presence poller stopped");
+      }
+    } catch (err) {
+      logger.error({ err }, "Error stopping presence poller");
     }
 
     try {

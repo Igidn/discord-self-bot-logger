@@ -182,13 +182,15 @@ async function pollGuild(guild: Guild) {
 /*  Public API                                                         */
 /* ------------------------------------------------------------------ */
 
-export async function startPresencePoller(client: Client, options?: { immediate?: boolean }) {
+export function startPresencePoller(client: Client, options?: { immediate?: boolean }): () => void {
   if (!config.logging.presence.enabled) {
     logger.info('Presence polling is disabled');
-    return;
+    return () => {};
   }
 
   const intervalMs = config.logging.presence.intervalSeconds * 1000;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let stopped = false;
 
   async function tick() {
     const guildIds = config.logging.guilds;
@@ -212,17 +214,39 @@ export async function startPresencePoller(client: Client, options?: { immediate?
     }
   }
 
-  if (options?.immediate) {
-    logger.info('Running initial presence hydration...');
-    await tick();
+  async function runAndSchedule() {
+    if (stopped) return;
+    try {
+      await tick();
+    } catch (err) {
+      logger.error({ err }, 'Presence poller tick failed');
+    }
+    if (!stopped) {
+      timer = setTimeout(runAndSchedule, intervalMs);
+    }
   }
 
-  setInterval(() => {
-    tick().catch((err) => logger.error({ err }, 'Presence poller tick failed'));
-  }, intervalMs);
+  if (options?.immediate) {
+    logger.info('Running initial presence hydration...');
+    tick().then(() => {
+      if (!stopped) {
+        timer = setTimeout(runAndSchedule, intervalMs);
+      }
+    });
+  } else {
+    timer = setTimeout(runAndSchedule, intervalMs);
+  }
 
   logger.info(
     { intervalSeconds: config.logging.presence.intervalSeconds },
     'Presence poller started'
   );
+
+  return () => {
+    stopped = true;
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+  };
 }
