@@ -10,6 +10,19 @@ interface MessagePayload {
   authorId: string;
   content?: string | null;
   createdAt: number;
+  editedAt?: number | null;
+  deletedAt?: number | null;
+  isDm?: boolean;
+  replyToId?: string | null;
+  embedsJson?: string | null;
+  attachments?: number | unknown[];
+  reactions?: number | unknown[];
+  stickers?: string[];
+  author?: {
+    id: string;
+    username: string;
+    avatarUrl?: string | null;
+  } | null;
 }
 
 interface ReactionPayload {
@@ -73,6 +86,17 @@ function shouldThrottlePresence(room: string): boolean {
   return false;
 }
 
+function tokenizeSearchQuery(q: string): string[] {
+  const tokens: string[] = [];
+  const regex = /"([^"]*)"|(\S+)/g;
+  let match;
+  while ((match = regex.exec(q)) !== null) {
+    const token = (match[1] ?? match[2]).replace(/\*$/g, '');
+    if (token.length > 0) tokens.push(token.toLowerCase());
+  }
+  return tokens;
+}
+
 export function emitMessageNew(message: MessagePayload): void {
   try {
     const io = getIO();
@@ -93,7 +117,9 @@ export function emitMessageNew(message: MessagePayload): void {
         matches = false;
       }
       if (sub.q && typeof message.content === 'string') {
-        if (!message.content.toLowerCase().includes(sub.q.toLowerCase())) {
+        const tokens = tokenizeSearchQuery(sub.q);
+        const lowerContent = message.content.toLowerCase();
+        if (!tokens.every((t) => lowerContent.includes(t))) {
           matches = false;
         }
       }

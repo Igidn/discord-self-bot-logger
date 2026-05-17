@@ -7,7 +7,7 @@ interface SearchSubscription {
   filters?: unknown;
 }
 
-const searchSubscriptions = new WeakMap<Socket, SearchSubscription>();
+const searchSubscriptions = new Map<Socket, SearchSubscription>();
 
 export function setSearchSubscription(socket: Socket, sub: SearchSubscription): void {
   searchSubscriptions.set(socket, sub);
@@ -22,10 +22,7 @@ export function getSearchSubscription(socket: Socket): SearchSubscription | unde
 }
 
 export function getAllSearchSubscriptions(): Map<Socket, SearchSubscription> {
-  const map = new Map<Socket, SearchSubscription>();
-  // Note: WeakMap cannot be iterated; this is a stub for future refactors
-  // In practice, broadcaster.ts iterates over io.sockets.sockets and calls getSearchSubscription per socket
-  return map;
+  return new Map(searchSubscriptions);
 }
 
 export function channelRoom(channelId: string): string {

@@ -150,7 +150,8 @@ export function evaluateFilter(
       return messageValue != null;
     case 'hasAttachment':
       return (
-        Array.isArray(message.attachments) && message.attachments.length > 0
+        (Array.isArray(message.attachments) && message.attachments.length > 0) ||
+        (typeof message.attachments === 'number' && message.attachments > 0)
       );
     case 'hasEmbed':
       return (
@@ -160,7 +161,8 @@ export function evaluateFilter(
       );
     case 'hasReaction':
       return (
-        Array.isArray(message.reactions) && message.reactions.length > 0
+        (Array.isArray(message.reactions) && message.reactions.length > 0) ||
+        (typeof message.reactions === 'number' && message.reactions > 0)
       );
     case 'isDeleted':
       return message.deletedAt != null;

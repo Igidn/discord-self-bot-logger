@@ -53,7 +53,6 @@ export const messages = sqliteTable('messages', {
   idxMessagesGuildTime: index('idx_messages_guild_time').on(table.guildId, table.createdAt),
   idxMessagesChannelTime: index('idx_messages_channel_time').on(table.channelId, table.createdAt),
   idxMessagesAuthor: index('idx_messages_author').on(table.authorId, table.createdAt),
-  idxMessagesSearch: index('idx_messages_search').on(table.content),
 }));
 
 export const messageEdits = sqliteTable('message_edits', {

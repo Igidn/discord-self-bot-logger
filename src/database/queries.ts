@@ -22,6 +22,39 @@ import * as schema from './schema.js';
 import type { Filter, FilterClause } from '@/shared/filters.js';
 
 /* ------------------------------------------------------------------ */
+/*  Helpers                                                            */
+/* ------------------------------------------------------------------ */
+
+function escapeLikeValue(value: string): string {
+  return value.replace(/[%_\\]/g, '\\$&');
+}
+
+function likeContains(column: any, value: string): SQL {
+  return sql`${column} LIKE ${'%' + escapeLikeValue(value) + '%'} ESCAPE '\\'`;
+}
+
+function likeStartsWith(column: any, value: string): SQL {
+  return sql`${column} LIKE ${escapeLikeValue(value) + '%'} ESCAPE '\\'`;
+}
+
+function likeEndsWith(column: any, value: string): SQL {
+  return sql`${column} LIKE ${'%' + escapeLikeValue(value)} ESCAPE '\\'`;
+}
+
+function sanitizeFtsQuery(q: string): string {
+  return q
+    .trim()
+    .split(/\s+/)
+    .map((token) => {
+      const hasPrefix = token.endsWith('*');
+      const clean = hasPrefix ? token.slice(0, -1) : token;
+      const escaped = clean.replace(/"/g, '""');
+      return `"${escaped}"${hasPrefix ? '*' : ''}`;
+    })
+    .join(' ');
+}
+
+/* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
@@ -68,7 +101,6 @@ export interface MessageDetail {
 export interface SearchResult {
   data: ((typeof schema.messages.$inferSelect) & MessageWithAuthor)[];
   nextCursor: string | null;
-  source: 'fts' | 'like';
 }
 
 export interface GuildStats {
@@ -130,6 +162,9 @@ function buildMessageConditions(filters: MessageFilters) {
     conditions.push(
       sql`NOT EXISTS (SELECT 1 FROM ${schema.reactions} WHERE ${schema.reactions.messageId} = ${schema.messages.id})`
     );
+  if (filters.search) {
+    conditions.push(likeContains(schema.messages.content, filters.search));
+  }
 
   return conditions;
 }
@@ -429,11 +464,11 @@ export function buildClauseSQL(clause: FilterClause): SQL | undefined {
     case 'lte':
       return lte(col, value as any);
     case 'contains':
-      return like(col, `%${value}%`);
+      return likeContains(col, String(value));
     case 'startsWith':
-      return like(col, `${value}%`);
+      return likeStartsWith(col, String(value));
     case 'endsWith':
-      return like(col, `%${value}`);
+      return likeEndsWith(col, String(value));
     case 'in':
       return inArray(col, Array.isArray(value) ? value : [value]);
     case 'nin':
@@ -461,6 +496,11 @@ export function searchMessages(
   filter?: Filter,
   pagination: Pagination = {}
 ): SearchResult {
+  const trimmed = q.trim();
+  if (trimmed === '') {
+    return { data: [], nextCursor: null };
+  }
+
   const limit = pagination.limit ?? 50;
   const conditions: SQL[] = [];
 
@@ -470,29 +510,40 @@ export function searchMessages(
   }
 
   // Cursor pagination — validate format "timestampMs:id" before applying
+  let cursorDate: Date | null = null;
+  let cursorId: string | null = null;
+
   if (pagination.cursor) {
     const sepIndex = pagination.cursor.indexOf(':');
     if (sepIndex > 0) {
       const tsStr = pagination.cursor.slice(0, sepIndex);
-      const cursorId = pagination.cursor.slice(sepIndex + 1);
+      const cId = pagination.cursor.slice(sepIndex + 1);
       const tsNum = Number(tsStr);
-      if (!isNaN(tsNum) && cursorId) {
-        const cursorDate = new Date(tsNum);
+      if (!isNaN(tsNum) && cId) {
+        cursorDate = new Date(tsNum);
+        cursorId = cId;
         conditions.push(
           or(
             lt(schema.messages.createdAt, cursorDate),
-            and(eq(schema.messages.createdAt, cursorDate), lt(schema.messages.id, cursorId))
-          )
+            and(eq(schema.messages.createdAt, cursorDate), lt(schema.messages.id, cursorId))!
+          )!
         );
       }
     }
     // Invalid cursor format is ignored — returns results from the beginning
   }
 
+  const sanitizedQ = sanitizeFtsQuery(trimmed);
+
   // Try FTS5 first
   try {
+    const cursorSQL =
+      cursorDate && cursorId
+        ? sql`AND (m.created_at < ${Math.floor(cursorDate.getTime() / 1000)} OR (m.created_at = ${Math.floor(cursorDate.getTime() / 1000)} AND m.id < ${cursorId}))`
+        : sql``;
+
     const ftsResults = db.all<{ rowid: number }>(
-      sql`SELECT rowid FROM messages_fts WHERE content MATCH ${q} LIMIT ${limit * 3}`
+      sql`SELECT m.rowid FROM messages_fts m_fts JOIN messages m ON m.rowid = m_fts.rowid WHERE m_fts.content MATCH ${sanitizedQ} ${cursorSQL} ORDER BY m.created_at DESC, m.id DESC LIMIT ${limit * 3}`
     );
 
     if (ftsResults.length > 0) {
@@ -517,14 +568,14 @@ export function searchMessages(
           ? `${data[data.length - 1].createdAt?.getTime()}:${data[data.length - 1].id}`
           : null;
 
-      return { data: attachAuthors(data), nextCursor, source: 'fts' };
+      return { data: attachAuthors(data), nextCursor };
     }
   } catch {
     // FTS failed (e.g. query syntax error) — fall through to LIKE
   }
 
   // LIKE fallback
-  conditions.push(like(schema.messages.content, `%${q}%`));
+  conditions.push(likeContains(schema.messages.content, trimmed));
 
   let query = db.select().from(schema.messages).$dynamic();
 
@@ -544,7 +595,7 @@ export function searchMessages(
       ? `${data[data.length - 1].createdAt?.getTime()}:${data[data.length - 1].id}`
       : null;
 
-  return { data: attachAuthors(data), nextCursor, source: 'like' };
+  return { data: attachAuthors(data), nextCursor };
 }
 
 /* ------------------------------------------------------------------ */

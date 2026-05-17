@@ -2,7 +2,7 @@ import { Client, Message } from 'discord.js-selfbot-v13';
 import { sqlite } from '../../database/index.js';
 import { logger } from '../../utils/logger.js';
 import { requireGuild } from '../guildFilter.js';
-import { broadcaster } from '../../dashboard/socket/broadcaster.js';
+import { emitMessageNew } from '../../dashboard/socket/broadcaster.js';
 import { downloadAttachment } from '../../services/attachmentDownloader.js';
 import {
   enrichUser,
@@ -24,7 +24,7 @@ async function onMessageCreate(client: Client, _db: any, message: Message) {
         id: message.author.id,
         username: message.author.username,
         discriminator: message.author.discriminator,
-        avatarURL: message.author.avatarURL.bind(message.author),
+        avatarURL: message.author.avatarURL.bind(message.author) as any,
         bot: message.author.bot,
       });
     }
@@ -35,7 +35,7 @@ async function onMessageCreate(client: Client, _db: any, message: Message) {
         enrichGuild({
           id: message.guild.id,
           name: message.guild.name,
-          iconURL: message.guild.iconURL.bind(message.guild),
+          iconURL: message.guild.iconURL.bind(message.guild) as any,
           ownerId: message.guild.ownerId,
           joinedAt: message.guild.joinedAt,
         });
@@ -135,7 +135,13 @@ async function onMessageCreate(client: Client, _db: any, message: Message) {
       authorId,
       content: message.content,
       createdAt: message.createdTimestamp,
+      isDm,
+      replyToId: message.reference?.messageId ?? null,
+      embedsJson: message.embeds.length > 0 ? JSON.stringify(message.embeds) : null,
       attachments: message.attachments.size,
+      reactions: 0,
+      editedAt: null,
+      deletedAt: null,
       stickers: stickerLinks,
       author: message.author
         ? {
@@ -146,10 +152,7 @@ async function onMessageCreate(client: Client, _db: any, message: Message) {
         : null,
     };
 
-    broadcaster.toChannel(channelId, 'message:new', payload);
-    if (guildId) {
-      broadcaster.toGuild(guildId, 'message:new', payload);
-    }
+    emitMessageNew(payload);
   } catch (err) {
     logger.error({ err }, 'Error in messageCreate handler');
   }

@@ -3,6 +3,7 @@ import z from 'zod';
 import { eq } from 'drizzle-orm';
 import {
   getMessages,
+  searchMessages,
   getMessageEdits,
   getMessageReactions,
 } from '@/database/queries.js';
@@ -32,11 +33,16 @@ router.get('/', async (req, res, next) => {
       authorId: query.author,
       before: query.before ? new Date(query.before) : undefined,
       after: query.after ? new Date(query.after) : undefined,
-      search: query.search,
     };
     const pagination = { limit: query.limit, cursor: query.cursor };
-    const { data, nextCursor } = getMessages(filters, pagination);
-    res.json({ data, nextCursor });
+
+    if (query.search) {
+      const { data, nextCursor } = searchMessages(query.search, undefined, pagination);
+      res.json({ data, nextCursor });
+    } else {
+      const { data, nextCursor } = getMessages(filters, pagination);
+      res.json({ data, nextCursor });
+    }
   } catch (err) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: err.errors });
