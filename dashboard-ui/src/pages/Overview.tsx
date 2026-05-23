@@ -382,7 +382,7 @@ function MessageRow({ message }: { message: RecentMessage }) {
             </Badge>
           )}
         </div>
-        <p className="truncate text-xs text-muted-foreground">{content}</p>
+        <p className="break-words text-xs text-muted-foreground">{content}</p>
       </div>
       <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{time}</span>
     </Link>
