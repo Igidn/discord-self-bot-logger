@@ -2,7 +2,7 @@ import { Client, Message } from 'discord.js-selfbot-v13';
 import { sqlite } from '../../database/index.js';
 import { logger } from '../../utils/logger.js';
 import { requireGuild } from '../guildFilter.js';
-import { emitMessageNew } from '../../dashboard/socket/broadcaster.js';
+import { emitMessageNew, emitTopActivityUpdate } from '../../dashboard/socket/broadcaster.js';
 import { downloadAttachment } from '../../services/attachmentDownloader.js';
 import {
   enrichUser,
@@ -153,6 +153,7 @@ async function onMessageCreate(client: Client, _db: any, message: Message) {
     };
 
     emitMessageNew(payload);
+    emitTopActivityUpdate();
   } catch (err) {
     logger.error({ err }, 'Error in messageCreate handler');
   }

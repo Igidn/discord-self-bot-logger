@@ -2,6 +2,7 @@ import { getIO } from '@/dashboard/socket/index.js';
 import { channelRoom, guildRoom, globalRoom, getSearchSubscription } from '@/dashboard/socket/rooms.js';
 import { evaluateFilter } from '@/shared/filters.js';
 import { logger } from '@/utils/logger.js';
+import { getTopChannels, getTopUsers } from '@/database/queries.js';
 
 interface MessagePayload {
   id: string;
@@ -231,6 +232,47 @@ export function emitGuildAudit(event: GuildAuditPayload): void {
     io.to(globalRoom()).emit('guild:audit', event);
   } catch (err) {
     logger.error(err, 'emitGuildAudit failed');
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Throttled top-activity broadcaster                                 */
+/* ------------------------------------------------------------------ */
+
+let topActivityPending = false;
+let topActivityLastEmit = 0;
+const TOP_ACTIVITY_THROTTLE_MS = 5000;
+
+export function emitTopActivityUpdate(): void {
+  const now = Date.now();
+  if (now - topActivityLastEmit < TOP_ACTIVITY_THROTTLE_MS) {
+    if (!topActivityPending) {
+      topActivityPending = true;
+      const delay = TOP_ACTIVITY_THROTTLE_MS - (now - topActivityLastEmit);
+      setTimeout(() => {
+        topActivityPending = false;
+        performTopActivityEmit();
+      }, delay);
+    }
+    return;
+  }
+  performTopActivityEmit();
+}
+
+function performTopActivityEmit(): void {
+  try {
+    topActivityLastEmit = Date.now();
+    const days = 30;
+    const topChannels = getTopChannels(days);
+    const topUsers = getTopUsers(days);
+    const io = getIO();
+    io.to(globalRoom()).emit('stats:topActivity', {
+      days,
+      topChannels,
+      topUsers,
+    });
+  } catch (err) {
+    logger.error(err, 'performTopActivityEmit failed');
   }
 }
 

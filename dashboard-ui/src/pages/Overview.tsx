@@ -121,10 +121,24 @@ export default function Overview() {
       setRecent((prev) => [message, ...prev.filter((item) => item.id !== message.id)].slice(0, 8));
     };
 
+    const onTopActivity = (payload: { days: number; topChannels: TopChannel[]; topUsers: TopUser[] }) => {
+      setStats((prev) =>
+        prev
+          ? {
+              ...prev,
+              topChannels: payload.topChannels,
+              topUsers: payload.topUsers,
+            }
+          : prev
+      );
+    };
+
     socket.on('message:new', onMessage);
+    socket.on('stats:topActivity', onTopActivity);
 
     return () => {
       socket.off('message:new', onMessage);
+      socket.off('stats:topActivity', onTopActivity);
     };
   }, [socket]);
 
