@@ -241,6 +241,7 @@ export function emitGuildAudit(event: GuildAuditPayload): void {
 
 let topActivityPending = false;
 let topActivityLastEmit = 0;
+let topActivityTimer: NodeJS.Timeout | null = null;
 const TOP_ACTIVITY_THROTTLE_MS = 5000;
 
 export function emitTopActivityUpdate(): void {
@@ -249,12 +250,18 @@ export function emitTopActivityUpdate(): void {
     if (!topActivityPending) {
       topActivityPending = true;
       const delay = TOP_ACTIVITY_THROTTLE_MS - (now - topActivityLastEmit);
-      setTimeout(() => {
+      topActivityTimer = setTimeout(() => {
         topActivityPending = false;
+        topActivityTimer = null;
         performTopActivityEmit();
       }, delay);
     }
     return;
+  }
+  if (topActivityTimer) {
+    clearTimeout(topActivityTimer);
+    topActivityTimer = null;
+    topActivityPending = false;
   }
   performTopActivityEmit();
 }

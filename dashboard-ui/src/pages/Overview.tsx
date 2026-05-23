@@ -122,15 +122,11 @@ export default function Overview() {
     };
 
     const onTopActivity = (payload: { days: number; topChannels: TopChannel[]; topUsers: TopUser[] }) => {
-      setStats((prev) =>
-        prev
-          ? {
-              ...prev,
-              topChannels: payload.topChannels,
-              topUsers: payload.topUsers,
-            }
-          : prev
-      );
+      setStats((prev) => ({
+        ...(prev ?? { dailyCounts: [] }),
+        topChannels: payload.topChannels,
+        topUsers: payload.topUsers,
+      }));
     };
 
     socket.on('message:new', onMessage);
