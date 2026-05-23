@@ -35,29 +35,25 @@ export interface DiscordMessage {
 }
 
 class SimpleLRU<T> {
-  private cache = new Map<string, { value: T; lastAccess: number }>();
+  private cache = new Map<string, T>();
   constructor(private maxSize: number) {}
 
   get(key: string): T | undefined {
-    const entry = this.cache.get(key);
-    if (!entry) return undefined;
-    entry.lastAccess = Date.now();
-    return entry.value;
+    const value = this.cache.get(key);
+    if (value === undefined) return undefined;
+    // Promote to newest by re-inserting
+    this.cache.delete(key);
+    this.cache.set(key, value);
+    return value;
   }
 
   set(key: string, value: T): void {
     if (this.cache.size >= this.maxSize && !this.cache.has(key)) {
-      let oldestKey: string | null = null;
-      let oldestTime = Infinity;
-      for (const [k, v] of this.cache) {
-        if (v.lastAccess < oldestTime) {
-          oldestTime = v.lastAccess;
-          oldestKey = k;
-        }
-      }
+      const oldestKey = this.cache.keys().next().value;
       if (oldestKey) this.cache.delete(oldestKey);
     }
-    this.cache.set(key, { value, lastAccess: Date.now() });
+    this.cache.delete(key);
+    this.cache.set(key, value);
   }
 }
 
