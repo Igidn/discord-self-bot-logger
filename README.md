@@ -43,7 +43,7 @@ A powerful Discord self-bot that logs messages, events, and server activity to a
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/discord-self-bot-logger.git
+git clone https://github.com/Igidn/discord-self-bot-logger.git
 cd discord-self-bot-logger
 
 # Install dependencies
