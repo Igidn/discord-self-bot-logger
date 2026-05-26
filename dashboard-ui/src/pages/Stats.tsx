@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { BarChart3, Hash, MessageSquare, TrendingUp, User } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -108,6 +109,7 @@ export default function Stats() {
         label: item.username ? `@${item.username}` : item.userId.slice(-6),
         avatarUrl: item.avatarUrl,
         count: item.count,
+        to: `/users/${item.userId}`,
       })),
     [stats],
   );
@@ -297,7 +299,7 @@ function RankList({
   items,
   emptyLabel,
 }: {
-  items: { id: string; label: string; avatarUrl?: string | null; count: number }[];
+  items: { id: string; label: string; avatarUrl?: string | null; count: number; to?: string }[];
   emptyLabel: string;
 }) {
   const maxCount = Math.max(...items.map((item) => item.count), 1);
@@ -327,7 +329,13 @@ function RankList({
                     <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
                   </Avatar>
                 )}
-                <span className="truncate text-sm font-medium">{item.label}</span>
+                {item.to ? (
+                  <Link to={item.to} className="truncate text-sm font-medium hover:underline">
+                    {item.label}
+                  </Link>
+                ) : (
+                  <span className="truncate text-sm font-medium">{item.label}</span>
+                )}
               </div>
               <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                 {item.count.toLocaleString()}
