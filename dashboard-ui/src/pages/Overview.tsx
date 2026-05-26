@@ -152,6 +152,7 @@ export default function Overview() {
     label: item.username ? `@${item.username}` : item.userId.slice(-6),
     avatarUrl: item.avatarUrl,
     count: item.count,
+    to: `/users/${item.userId}`,
   }));
 
   const isConnected = status === 'connected';
@@ -396,7 +397,7 @@ function RankList({
   items,
   emptyLabel,
 }: {
-  items: { id: string; label: string; avatarUrl?: string | null; count: number }[];
+  items: { id: string; label: string; avatarUrl?: string | null; count: number; to?: string }[];
   emptyLabel: string;
 }) {
   const maxCount = Math.max(...items.map((item) => item.count), 1);
@@ -426,7 +427,13 @@ function RankList({
                     <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
                   </Avatar>
                 )}
-                <span className="truncate text-sm font-medium">{item.label}</span>
+                {item.to ? (
+                  <Link to={item.to} className="truncate text-sm font-medium hover:underline">
+                    {item.label}
+                  </Link>
+                ) : (
+                  <span className="truncate text-sm font-medium">{item.label}</span>
+                )}
               </div>
               <span className="text-xs tabular-nums text-muted-foreground shrink-0">
                 {formatNumber(item.count)}
