@@ -499,7 +499,9 @@ export function searchMessages(
   pagination: Pagination = {}
 ): SearchResult {
   const trimmed = q.trim();
-  if (trimmed === '') {
+  const hasText = trimmed !== '';
+
+  if (!hasText && !filter) {
     return { data: [], nextCursor: null };
   }
 
@@ -533,6 +535,29 @@ export function searchMessages(
       }
     }
     // Invalid cursor format is ignored — returns results from the beginning
+  }
+
+  // Filter-only path — no text query, just filters + cursor
+  if (!hasText) {
+    let query = db.select().from(schema.messages).$dynamic();
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+
+    const rows = query
+      .orderBy(desc(schema.messages.createdAt), desc(schema.messages.id))
+      .limit(limit + 1)
+      .all();
+
+    const hasMore = rows.length > limit;
+    const data = hasMore ? rows.slice(0, -1) : rows;
+    const nextCursor =
+      hasMore && data.length > 0
+        ? `${data[data.length - 1].createdAt?.getTime()}:${data[data.length - 1].id}`
+        : null;
+
+    return { data: attachAuthors(data), nextCursor };
   }
 
   const sanitizedQ = sanitizeFtsQuery(trimmed);
