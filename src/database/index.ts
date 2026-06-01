@@ -23,6 +23,7 @@ if (config.database.wal) {
 sqlite.pragma('foreign_keys = ON');
 
 export const db = drizzle(sqlite, { schema });
+export type DrizzleDb = typeof db;
 export { sqlite };
 
 // Run migrations

@@ -1,5 +1,6 @@
 import { Client } from 'discord.js-selfbot-v13';
 import { config } from '@/config/loader.js';
+import { DrizzleDb } from '@/database/index.js';
 import { handleMessageCreate } from './messageCreate.js';
 import { handleMessageUpdate } from './messageUpdate.js';
 import { handleMessageDelete, handleMessageDeleteBulk } from './messageDelete.js';
@@ -31,7 +32,7 @@ import {
 } from './guildAudit.js';
 import { handlePresenceUpdate } from './presence.js';
 
-export function registerEvents(client: Client, db: any) {
+export function registerEvents(client: Client, db: DrizzleDb) {
   if (config.logging.events.messages) {
     client.on('messageCreate', (...args) => handleMessageCreate(client, db, ...args));
   }

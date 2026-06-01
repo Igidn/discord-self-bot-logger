@@ -1,5 +1,5 @@
 import { Client, Presence } from 'discord.js-selfbot-v13';
-import { sqlite } from '@/database/index.js';
+import { sqlite, DrizzleDb } from '@/database/index.js';
 import { broadcaster } from '@/dashboard/socket/broadcaster.js';
 
 /**
@@ -46,7 +46,7 @@ export function recordPresenceChange(
  */
 export function handlePresenceUpdate(
   _client: Client,
-  _db: any,
+  _db: DrizzleDb,
   _oldPresence: Presence | null,
   newPresence: Presence
 ) {

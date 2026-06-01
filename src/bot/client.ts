@@ -1,6 +1,7 @@
 import { Client } from 'discord.js-selfbot-v13';
 import { config } from '@/config/loader.js';
 import { logger } from '@/utils/logger.js';
+import { DrizzleDb } from '@/database/index.js';
 import { registerEvents } from './events/index.js';
 
 import { enrichGuild } from '@/services/enricher.js';
@@ -37,7 +38,7 @@ client.once('ready', () => {
   }
 });
 
-export async function startBot(db: any): Promise<void> {
+export async function startBot(db: DrizzleDb): Promise<void> {
   registerEvents(client, db);
   await client.login(config.token);
 }

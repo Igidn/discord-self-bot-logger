@@ -1,10 +1,10 @@
 import { Client, MessageReaction, User } from 'discord.js-selfbot-v13';
-import { sqlite } from '@/database/index.js';
+import { sqlite, DrizzleDb } from '@/database/index.js';
 import { logger } from '@/utils/logger.js';
 import { requireGuild } from '../guildFilter.js';
 import { broadcaster } from '@/dashboard/socket/broadcaster.js';
 
-async function onReactionAdd(client: Client, _db: any, reaction: MessageReaction, user: User) {
+async function onReactionAdd(client: Client, _db: DrizzleDb, reaction: MessageReaction, user: User) {
   try {
     const guildId = reaction.message.guildId ?? null;
     const channelId = reaction.message.channelId;
@@ -27,7 +27,7 @@ async function onReactionAdd(client: Client, _db: any, reaction: MessageReaction
   }
 }
 
-async function onReactionRemove(client: Client, _db: any, reaction: MessageReaction, user: User) {
+async function onReactionRemove(client: Client, _db: DrizzleDb, reaction: MessageReaction, user: User) {
   try {
     const guildId = reaction.message.guildId ?? null;
     const channelId = reaction.message.channelId;
@@ -50,7 +50,7 @@ async function onReactionRemove(client: Client, _db: any, reaction: MessageReact
   }
 }
 
-async function onReactionRemoveAll(client: Client, _db: any, message: any) {
+async function onReactionRemoveAll(client: Client, _db: DrizzleDb, message: any) {
   try {
     const guildId = message.guildId ?? null;
     const channelId = message.channelId;
@@ -70,7 +70,7 @@ async function onReactionRemoveAll(client: Client, _db: any, message: any) {
   }
 }
 
-async function onReactionRemoveEmoji(client: Client, _db: any, reaction: MessageReaction) {
+async function onReactionRemoveEmoji(client: Client, _db: DrizzleDb, reaction: MessageReaction) {
   try {
     const guildId = reaction.message.guildId ?? null;
     const channelId = reaction.message.channelId;

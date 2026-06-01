@@ -1,8 +1,9 @@
 import { Client } from 'discord.js-selfbot-v13';
 import { config } from '@/config/loader.js';
 import { logger } from '@/utils/logger.js';
+import { DrizzleDb } from '@/database/index.js';
 
-export type EventHandler = (client: Client, db: any, ...args: any[]) => Promise<void> | void;
+export type EventHandler = (client: Client, db: DrizzleDb, ...args: any[]) => Promise<void> | void;
 
 export function extractGuildId(args: any[]): string | null | undefined {
   const first = args[0];

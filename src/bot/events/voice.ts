@@ -1,5 +1,5 @@
 import { Client, VoiceState } from 'discord.js-selfbot-v13';
-import { sqlite } from '@/database/index.js';
+import { sqlite, DrizzleDb } from '@/database/index.js';
 import { logger } from '@/utils/logger.js';
 import { requireGuild } from '../guildFilter.js';
 import { broadcaster } from '@/dashboard/socket/broadcaster.js';
@@ -39,7 +39,7 @@ function determineVoiceEvent(
   return { type: 'UNKNOWN', oldValue: null, newValue: null };
 }
 
-async function onVoiceStateUpdate(client: Client, _db: any, oldState: VoiceState, newState: VoiceState) {
+async function onVoiceStateUpdate(client: Client, _db: DrizzleDb, oldState: VoiceState, newState: VoiceState) {
   try {
     const guildId = newState.guild.id;
     const userId = newState.id;
