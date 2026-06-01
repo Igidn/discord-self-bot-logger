@@ -1,5 +1,6 @@
 import { Client, GuildMember, PartialGuildMember, GuildBan } from 'discord.js-selfbot-v13';
-import { sqlite, DrizzleDb } from '@/database/index.js';
+import { DrizzleDb, db } from '@/database/index.js';
+import { memberEvents } from '@/database/schema.js';
 import { logger } from '@/utils/logger.js';
 import { requireGuild } from '../guildFilter.js';
 import { broadcaster } from '@/dashboard/socket/broadcaster.js';
@@ -8,12 +9,15 @@ async function onGuildMemberAdd(client: Client, _db: DrizzleDb, member: GuildMem
   try {
     const guildId = member.guild.id;
     const userId = member.id;
-    const createdAt = Math.floor(Date.now() / 1000);
+    const createdAt = new Date();
 
-    sqlite.prepare(`
-      INSERT INTO member_events (guild_id, user_id, event_type, roles_json, created_at)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(guildId, userId, 'JOIN', JSON.stringify(member.roles.cache.map((r) => r.id)), createdAt);
+    db.insert(memberEvents).values({
+      guildId,
+      userId,
+      eventType: 'JOIN',
+      rolesJson: JSON.stringify(member.roles.cache.map((r) => r.id)),
+      createdAt,
+    }).run();
 
     broadcaster.toGuild(guildId, 'member:event', { guildId, userId, eventType: 'JOIN', createdAt });
   } catch (err) {
@@ -25,12 +29,15 @@ async function onGuildMemberRemove(client: Client, _db: DrizzleDb, member: Guild
   try {
     const guildId = member.guild.id;
     const userId = member.id;
-    const createdAt = Math.floor(Date.now() / 1000);
+    const createdAt = new Date();
 
-    sqlite.prepare(`
-      INSERT INTO member_events (guild_id, user_id, event_type, roles_json, created_at)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(guildId, userId, 'LEAVE', null, createdAt);
+    db.insert(memberEvents).values({
+      guildId,
+      userId,
+      eventType: 'LEAVE',
+      rolesJson: null,
+      createdAt,
+    }).run();
 
     broadcaster.toGuild(guildId, 'member:event', { guildId, userId, eventType: 'LEAVE', createdAt });
   } catch (err) {
@@ -42,12 +49,15 @@ async function onGuildBanAdd(client: Client, _db: DrizzleDb, ban: GuildBan) {
   try {
     const guildId = ban.guild.id;
     const userId = ban.user.id;
-    const createdAt = Math.floor(Date.now() / 1000);
+    const createdAt = new Date();
 
-    sqlite.prepare(`
-      INSERT INTO member_events (guild_id, user_id, event_type, roles_json, created_at)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(guildId, userId, 'BAN', null, createdAt);
+    db.insert(memberEvents).values({
+      guildId,
+      userId,
+      eventType: 'BAN',
+      rolesJson: null,
+      createdAt,
+    }).run();
 
     broadcaster.toGuild(guildId, 'member:event', { guildId, userId, eventType: 'BAN', createdAt });
   } catch (err) {
@@ -59,12 +69,15 @@ async function onGuildBanRemove(client: Client, _db: DrizzleDb, ban: GuildBan) {
   try {
     const guildId = ban.guild.id;
     const userId = ban.user.id;
-    const createdAt = Math.floor(Date.now() / 1000);
+    const createdAt = new Date();
 
-    sqlite.prepare(`
-      INSERT INTO member_events (guild_id, user_id, event_type, roles_json, created_at)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(guildId, userId, 'UNBAN', null, createdAt);
+    db.insert(memberEvents).values({
+      guildId,
+      userId,
+      eventType: 'UNBAN',
+      rolesJson: null,
+      createdAt,
+    }).run();
 
     broadcaster.toGuild(guildId, 'member:event', { guildId, userId, eventType: 'UNBAN', createdAt });
   } catch (err) {
@@ -81,16 +94,21 @@ async function onGuildMemberUpdate(
   try {
     const guildId = newMember.guild.id;
     const userId = newMember.id;
-    const createdAt = Math.floor(Date.now() / 1000);
+    const createdAt = new Date();
 
     // Nick diff
     const oldNick = oldMember.nickname ?? null;
     const newNick = newMember.nickname ?? null;
     if (oldNick !== newNick) {
-      sqlite.prepare(`
-        INSERT INTO member_events (guild_id, user_id, event_type, old_value, new_value, roles_json, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(guildId, userId, 'NICK_CHANGE', oldNick, newNick, null, createdAt);
+      db.insert(memberEvents).values({
+        guildId,
+        userId,
+        eventType: 'NICK_CHANGE',
+        oldValue: oldNick,
+        newValue: newNick,
+        rolesJson: null,
+        createdAt,
+      }).run();
 
       broadcaster.toGuild(guildId, 'member:event', {
         guildId,
@@ -109,18 +127,15 @@ async function onGuildMemberUpdate(
     const removed = [...oldRoles].filter((r) => !newRoles.has(r));
 
     if (added.length > 0 || removed.length > 0) {
-      sqlite.prepare(`
-        INSERT INTO member_events (guild_id, user_id, event_type, old_value, new_value, roles_json, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(
+      db.insert(memberEvents).values({
         guildId,
         userId,
-        'UPDATE',
-        JSON.stringify(removed),
-        JSON.stringify(added),
-        JSON.stringify(newMember.roles.cache.map((r) => r.id)),
-        createdAt
-      );
+        eventType: 'UPDATE',
+        oldValue: JSON.stringify(removed),
+        newValue: JSON.stringify(added),
+        rolesJson: JSON.stringify(newMember.roles.cache.map((r) => r.id)),
+        createdAt,
+      }).run();
 
       broadcaster.toGuild(guildId, 'member:event', {
         guildId,

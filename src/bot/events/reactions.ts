@@ -1,5 +1,6 @@
 import { Client, MessageReaction, User } from 'discord.js-selfbot-v13';
-import { sqlite, DrizzleDb } from '@/database/index.js';
+import { DrizzleDb, db } from '@/database/index.js';
+import { reactions } from '@/database/schema.js';
 import { logger } from '@/utils/logger.js';
 import { requireGuild } from '../guildFilter.js';
 import { broadcaster } from '@/dashboard/socket/broadcaster.js';
@@ -12,12 +13,18 @@ async function onReactionAdd(client: Client, _db: DrizzleDb, reaction: MessageRe
     const userId = user.id;
     const emojiId = reaction.emoji.id;
     const emojiName = reaction.emoji.name;
-    const createdAt = Math.floor(Date.now() / 1000);
+    const createdAt = new Date();
 
-    sqlite.prepare(`
-      INSERT INTO reactions (message_id, guild_id, channel_id, user_id, emoji_id, emoji_name, added, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(messageId, guildId, channelId, userId, emojiId, emojiName, 1, createdAt);
+    db.insert(reactions).values({
+      messageId,
+      guildId,
+      channelId,
+      userId,
+      emojiId,
+      emojiName,
+      added: true,
+      createdAt,
+    }).run();
 
     const payload = { messageId, guildId, channelId, userId, emojiId, emojiName, added: 1, createdAt };
     broadcaster.toChannel(channelId, 'reaction:add', payload);
@@ -35,12 +42,18 @@ async function onReactionRemove(client: Client, _db: DrizzleDb, reaction: Messag
     const userId = user.id;
     const emojiId = reaction.emoji.id;
     const emojiName = reaction.emoji.name;
-    const createdAt = Math.floor(Date.now() / 1000);
+    const createdAt = new Date();
 
-    sqlite.prepare(`
-      INSERT INTO reactions (message_id, guild_id, channel_id, user_id, emoji_id, emoji_name, added, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(messageId, guildId, channelId, userId, emojiId, emojiName, 0, createdAt);
+    db.insert(reactions).values({
+      messageId,
+      guildId,
+      channelId,
+      userId,
+      emojiId,
+      emojiName,
+      added: false,
+      createdAt,
+    }).run();
 
     const payload = { messageId, guildId, channelId, userId, emojiId, emojiName, added: 0, createdAt };
     broadcaster.toChannel(channelId, 'reaction:remove', payload);
@@ -55,12 +68,18 @@ async function onReactionRemoveAll(client: Client, _db: DrizzleDb, message: any)
     const guildId = message.guildId ?? null;
     const channelId = message.channelId;
     const messageId = message.id;
-    const createdAt = Math.floor(Date.now() / 1000);
+    const createdAt = new Date();
 
-    sqlite.prepare(`
-      INSERT INTO reactions (message_id, guild_id, channel_id, user_id, emoji_id, emoji_name, added, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(messageId, guildId, channelId, 'system', null, null, 0, createdAt);
+    db.insert(reactions).values({
+      messageId,
+      guildId,
+      channelId,
+      userId: 'system',
+      emojiId: null,
+      emojiName: null,
+      added: false,
+      createdAt,
+    }).run();
 
     const payload = { messageId, guildId, channelId, removedAll: true, createdAt };
     broadcaster.toChannel(channelId, 'reaction:remove', payload);
@@ -77,12 +96,18 @@ async function onReactionRemoveEmoji(client: Client, _db: DrizzleDb, reaction: M
     const messageId = reaction.message.id;
     const emojiId = reaction.emoji.id;
     const emojiName = reaction.emoji.name;
-    const createdAt = Math.floor(Date.now() / 1000);
+    const createdAt = new Date();
 
-    sqlite.prepare(`
-      INSERT INTO reactions (message_id, guild_id, channel_id, user_id, emoji_id, emoji_name, added, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(messageId, guildId, channelId, 'system', emojiId, emojiName, 0, createdAt);
+    db.insert(reactions).values({
+      messageId,
+      guildId,
+      channelId,
+      userId: 'system',
+      emojiId,
+      emojiName,
+      added: false,
+      createdAt,
+    }).run();
 
     const payload = { messageId, guildId, channelId, emojiId, emojiName, removedEmoji: true, createdAt };
     broadcaster.toChannel(channelId, 'reaction:remove', payload);

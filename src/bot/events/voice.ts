@@ -1,5 +1,6 @@
 import { Client, VoiceState } from 'discord.js-selfbot-v13';
-import { sqlite, DrizzleDb } from '@/database/index.js';
+import { DrizzleDb, db } from '@/database/index.js';
+import { voiceEvents } from '@/database/schema.js';
 import { logger } from '@/utils/logger.js';
 import { requireGuild } from '../guildFilter.js';
 import { broadcaster } from '@/dashboard/socket/broadcaster.js';
@@ -47,12 +48,17 @@ async function onVoiceStateUpdate(client: Client, _db: DrizzleDb, oldState: Voic
     const { type, oldValue, newValue } = determineVoiceEvent(oldState, newState);
     if (type === 'UNKNOWN') return;
 
-    const createdAt = Math.floor(Date.now() / 1000);
+    const createdAt = new Date();
 
-    sqlite.prepare(`
-      INSERT INTO voice_events (guild_id, user_id, channel_id, event_type, old_value, new_value, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(guildId, userId, channelId, type, oldValue, newValue, createdAt);
+    db.insert(voiceEvents).values({
+      guildId,
+      userId,
+      channelId,
+      eventType: type,
+      oldValue,
+      newValue,
+      createdAt,
+    }).run();
 
     broadcaster.toGuild(guildId, 'voice:event', {
       guildId,

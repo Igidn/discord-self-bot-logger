@@ -1,5 +1,7 @@
 import { Client, Channel, Role, Guild, ThreadChannel } from 'discord.js-selfbot-v13';
-import { sqlite, DrizzleDb } from '@/database/index.js';
+import { DrizzleDb, db } from '@/database/index.js';
+import { guildAudit, channels, guilds } from '@/database/schema.js';
+import { eq } from 'drizzle-orm';
 import { logger } from '@/utils/logger.js';
 import { requireGuild } from '../guildFilter.js';
 import { broadcaster } from '@/dashboard/socket/broadcaster.js';
@@ -9,25 +11,38 @@ async function onChannelCreate(client: Client, _db: DrizzleDb, channel: Channel)
     const guildId = (channel as any).guild?.id ?? null;
     if (!guildId) return;
 
-    const createdAt = Math.floor(Date.now() / 1000);
+    const createdAt = new Date();
     const ch = channel as any;
 
-    sqlite.prepare(`
-      INSERT INTO guild_audit (guild_id, action_type, target_id, target_type, user_id, changes_json, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(guildId, 'CHANNEL_CREATE', ch.id, 'CHANNEL', null, JSON.stringify({ name: ch.name, type: ch.type }), createdAt);
+    db.insert(guildAudit).values({
+      guildId,
+      actionType: 'CHANNEL_CREATE',
+      targetId: ch.id,
+      targetType: 'CHANNEL',
+      userId: null,
+      changesJson: JSON.stringify({ name: ch.name, type: ch.type }),
+      createdAt,
+    }).run();
 
     // Upsert into channels table
-    sqlite.prepare(`
-      INSERT INTO channels (id, guild_id, name, type, topic, nsfw, parent_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(id) DO UPDATE SET
-        name = excluded.name,
-        type = excluded.type,
-        topic = excluded.topic,
-        nsfw = excluded.nsfw,
-        parent_id = excluded.parent_id
-    `).run(ch.id, guildId, ch.name ?? null, ch.type ?? null, ch.topic ?? null, ch.nsfw ? 1 : 0, ch.parentId ?? null);
+    db.insert(channels).values({
+      id: ch.id,
+      guildId,
+      name: ch.name ?? null,
+      type: ch.type ?? null,
+      topic: ch.topic ?? null,
+      nsfw: ch.nsfw ?? false,
+      parentId: ch.parentId ?? null,
+    }).onConflictDoUpdate({
+      target: channels.id,
+      set: {
+        name: ch.name ?? null,
+        type: ch.type ?? null,
+        topic: ch.topic ?? null,
+        nsfw: ch.nsfw ?? false,
+        parentId: ch.parentId ?? null,
+      },
+    }).run();
 
     broadcaster.toGuild(guildId, 'guild:audit', { guildId, actionType: 'CHANNEL_CREATE', targetId: ch.id, createdAt });
   } catch (err) {
@@ -40,7 +55,7 @@ async function onChannelUpdate(client: Client, _db: DrizzleDb, oldChannel: Chann
     const guildId = (newChannel as any).guild?.id ?? null;
     if (!guildId) return;
 
-    const createdAt = Math.floor(Date.now() / 1000);
+    const createdAt = new Date();
     const oc = oldChannel as any;
     const nc = newChannel as any;
 
@@ -50,22 +65,35 @@ async function onChannelUpdate(client: Client, _db: DrizzleDb, oldChannel: Chann
     if (oc.nsfw !== nc.nsfw) changes.nsfw = { old: oc.nsfw, new: nc.nsfw };
     if (oc.parentId !== nc.parentId) changes.parentId = { old: oc.parentId, new: nc.parentId };
 
-    sqlite.prepare(`
-      INSERT INTO guild_audit (guild_id, action_type, target_id, target_type, user_id, changes_json, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(guildId, 'CHANNEL_UPDATE', nc.id, 'CHANNEL', null, JSON.stringify(changes), createdAt);
+    db.insert(guildAudit).values({
+      guildId,
+      actionType: 'CHANNEL_UPDATE',
+      targetId: nc.id,
+      targetType: 'CHANNEL',
+      userId: null,
+      changesJson: JSON.stringify(changes),
+      createdAt,
+    }).run();
 
     // Upsert into channels table
-    sqlite.prepare(`
-      INSERT INTO channels (id, guild_id, name, type, topic, nsfw, parent_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(id) DO UPDATE SET
-        name = excluded.name,
-        type = excluded.type,
-        topic = excluded.topic,
-        nsfw = excluded.nsfw,
-        parent_id = excluded.parent_id
-    `).run(nc.id, guildId, nc.name ?? null, nc.type ?? null, nc.topic ?? null, nc.nsfw ? 1 : 0, nc.parentId ?? null);
+    db.insert(channels).values({
+      id: nc.id,
+      guildId,
+      name: nc.name ?? null,
+      type: nc.type ?? null,
+      topic: nc.topic ?? null,
+      nsfw: nc.nsfw ?? false,
+      parentId: nc.parentId ?? null,
+    }).onConflictDoUpdate({
+      target: channels.id,
+      set: {
+        name: nc.name ?? null,
+        type: nc.type ?? null,
+        topic: nc.topic ?? null,
+        nsfw: nc.nsfw ?? false,
+        parentId: nc.parentId ?? null,
+      },
+    }).run();
 
     broadcaster.toGuild(guildId, 'guild:audit', { guildId, actionType: 'CHANNEL_UPDATE', targetId: nc.id, changes, createdAt });
   } catch (err) {
@@ -78,13 +106,18 @@ async function onChannelDelete(client: Client, _db: DrizzleDb, channel: Channel)
     const guildId = (channel as any).guild?.id ?? null;
     if (!guildId) return;
 
-    const createdAt = Math.floor(Date.now() / 1000);
+    const createdAt = new Date();
     const ch = channel as any;
 
-    sqlite.prepare(`
-      INSERT INTO guild_audit (guild_id, action_type, target_id, target_type, user_id, changes_json, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(guildId, 'CHANNEL_DELETE', ch.id, 'CHANNEL', null, JSON.stringify({ name: ch.name }), createdAt);
+    db.insert(guildAudit).values({
+      guildId,
+      actionType: 'CHANNEL_DELETE',
+      targetId: ch.id,
+      targetType: 'CHANNEL',
+      userId: null,
+      changesJson: JSON.stringify({ name: ch.name }),
+      createdAt,
+    }).run();
 
     broadcaster.toGuild(guildId, 'guild:audit', { guildId, actionType: 'CHANNEL_DELETE', targetId: ch.id, createdAt });
   } catch (err) {
@@ -95,12 +128,17 @@ async function onChannelDelete(client: Client, _db: DrizzleDb, channel: Channel)
 async function onRoleCreate(client: Client, _db: DrizzleDb, role: Role) {
   try {
     const guildId = role.guild.id;
-    const createdAt = Math.floor(Date.now() / 1000);
+    const createdAt = new Date();
 
-    sqlite.prepare(`
-      INSERT INTO guild_audit (guild_id, action_type, target_id, target_type, user_id, changes_json, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(guildId, 'ROLE_CREATE', role.id, 'ROLE', null, JSON.stringify({ name: role.name, color: role.color }), createdAt);
+    db.insert(guildAudit).values({
+      guildId,
+      actionType: 'ROLE_CREATE',
+      targetId: role.id,
+      targetType: 'ROLE',
+      userId: null,
+      changesJson: JSON.stringify({ name: role.name, color: role.color }),
+      createdAt,
+    }).run();
 
     broadcaster.toGuild(guildId, 'guild:audit', { guildId, actionType: 'ROLE_CREATE', targetId: role.id, createdAt });
   } catch (err) {
@@ -111,7 +149,7 @@ async function onRoleCreate(client: Client, _db: DrizzleDb, role: Role) {
 async function onRoleUpdate(client: Client, _db: DrizzleDb, oldRole: Role, newRole: Role) {
   try {
     const guildId = newRole.guild.id;
-    const createdAt = Math.floor(Date.now() / 1000);
+    const createdAt = new Date();
 
     const changes: Record<string, { old: any; new: any }> = {};
     if (oldRole.name !== newRole.name) changes.name = { old: oldRole.name, new: newRole.name };
@@ -120,10 +158,15 @@ async function onRoleUpdate(client: Client, _db: DrizzleDb, oldRole: Role, newRo
       changes.permissions = { old: oldRole.permissions.bitfield.toString(), new: newRole.permissions.bitfield.toString() };
     }
 
-    sqlite.prepare(`
-      INSERT INTO guild_audit (guild_id, action_type, target_id, target_type, user_id, changes_json, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(guildId, 'ROLE_UPDATE', newRole.id, 'ROLE', null, JSON.stringify(changes), createdAt);
+    db.insert(guildAudit).values({
+      guildId,
+      actionType: 'ROLE_UPDATE',
+      targetId: newRole.id,
+      targetType: 'ROLE',
+      userId: null,
+      changesJson: JSON.stringify(changes),
+      createdAt,
+    }).run();
 
     broadcaster.toGuild(guildId, 'guild:audit', { guildId, actionType: 'ROLE_UPDATE', targetId: newRole.id, changes, createdAt });
   } catch (err) {
@@ -134,12 +177,17 @@ async function onRoleUpdate(client: Client, _db: DrizzleDb, oldRole: Role, newRo
 async function onRoleDelete(client: Client, _db: DrizzleDb, role: Role) {
   try {
     const guildId = role.guild.id;
-    const createdAt = Math.floor(Date.now() / 1000);
+    const createdAt = new Date();
 
-    sqlite.prepare(`
-      INSERT INTO guild_audit (guild_id, action_type, target_id, target_type, user_id, changes_json, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(guildId, 'ROLE_DELETE', role.id, 'ROLE', null, JSON.stringify({ name: role.name }), createdAt);
+    db.insert(guildAudit).values({
+      guildId,
+      actionType: 'ROLE_DELETE',
+      targetId: role.id,
+      targetType: 'ROLE',
+      userId: null,
+      changesJson: JSON.stringify({ name: role.name }),
+      createdAt,
+    }).run();
 
     broadcaster.toGuild(guildId, 'guild:audit', { guildId, actionType: 'ROLE_DELETE', targetId: role.id, createdAt });
   } catch (err) {
@@ -150,7 +198,7 @@ async function onRoleDelete(client: Client, _db: DrizzleDb, role: Role) {
 async function onGuildUpdate(client: Client, _db: DrizzleDb, oldGuild: Guild, newGuild: Guild) {
   try {
     const guildId = newGuild.id;
-    const createdAt = Math.floor(Date.now() / 1000);
+    const createdAt = new Date();
 
     const changes: Record<string, { old: any; new: any }> = {};
     if (oldGuild.name !== newGuild.name) changes.name = { old: oldGuild.name, new: newGuild.name };
@@ -158,17 +206,23 @@ async function onGuildUpdate(client: Client, _db: DrizzleDb, oldGuild: Guild, ne
     if (oldGuild.ownerId !== newGuild.ownerId) changes.ownerId = { old: oldGuild.ownerId, new: newGuild.ownerId };
     if (oldGuild.memberCount !== newGuild.memberCount) changes.memberCount = { old: oldGuild.memberCount, new: newGuild.memberCount };
 
-    sqlite.prepare(`
-      INSERT INTO guild_audit (guild_id, action_type, target_id, target_type, user_id, changes_json, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(guildId, 'GUILD_UPDATE', guildId, 'GUILD', null, JSON.stringify(changes), createdAt);
+    db.insert(guildAudit).values({
+      guildId,
+      actionType: 'GUILD_UPDATE',
+      targetId: guildId,
+      targetType: 'GUILD',
+      userId: null,
+      changesJson: JSON.stringify(changes),
+      createdAt,
+    }).run();
 
     // Update guilds table with latest metadata
-    sqlite.prepare(`
-      UPDATE guilds
-      SET name = ?, icon_url = ?, owner_id = ?, member_count = ?
-      WHERE id = ?
-    `).run(newGuild.name, newGuild.iconURL() ?? null, newGuild.ownerId, newGuild.memberCount, guildId);
+    db.update(guilds).set({
+      name: newGuild.name,
+      iconUrl: newGuild.iconURL() ?? null,
+      ownerId: newGuild.ownerId,
+      memberCount: newGuild.memberCount,
+    }).where(eq(guilds.id, guildId)).run();
 
     broadcaster.toGuild(guildId, 'guild:audit', { guildId, actionType: 'GUILD_UPDATE', changes, createdAt });
   } catch (err) {
@@ -179,12 +233,17 @@ async function onGuildUpdate(client: Client, _db: DrizzleDb, oldGuild: Guild, ne
 async function onThreadCreate(client: Client, _db: DrizzleDb, thread: ThreadChannel) {
   try {
     const guildId = thread.guild.id;
-    const createdAt = Math.floor(Date.now() / 1000);
+    const createdAt = new Date();
 
-    sqlite.prepare(`
-      INSERT INTO guild_audit (guild_id, action_type, target_id, target_type, user_id, changes_json, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(guildId, 'THREAD_CREATE', thread.id, 'THREAD', thread.ownerId ?? null, JSON.stringify({ name: thread.name, parentId: thread.parentId }), createdAt);
+    db.insert(guildAudit).values({
+      guildId,
+      actionType: 'THREAD_CREATE',
+      targetId: thread.id,
+      targetType: 'THREAD',
+      userId: thread.ownerId ?? null,
+      changesJson: JSON.stringify({ name: thread.name, parentId: thread.parentId }),
+      createdAt,
+    }).run();
 
     broadcaster.toGuild(guildId, 'guild:audit', { guildId, actionType: 'THREAD_CREATE', targetId: thread.id, createdAt });
   } catch (err) {
@@ -195,16 +254,21 @@ async function onThreadCreate(client: Client, _db: DrizzleDb, thread: ThreadChan
 async function onThreadUpdate(client: Client, _db: DrizzleDb, oldThread: ThreadChannel, newThread: ThreadChannel) {
   try {
     const guildId = newThread.guild.id;
-    const createdAt = Math.floor(Date.now() / 1000);
+    const createdAt = new Date();
 
     const changes: Record<string, { old: any; new: any }> = {};
     if (oldThread.name !== newThread.name) changes.name = { old: oldThread.name, new: newThread.name };
     if (oldThread.archived !== newThread.archived) changes.archived = { old: oldThread.archived, new: newThread.archived };
 
-    sqlite.prepare(`
-      INSERT INTO guild_audit (guild_id, action_type, target_id, target_type, user_id, changes_json, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(guildId, 'THREAD_UPDATE', newThread.id, 'THREAD', newThread.ownerId ?? null, JSON.stringify(changes), createdAt);
+    db.insert(guildAudit).values({
+      guildId,
+      actionType: 'THREAD_UPDATE',
+      targetId: newThread.id,
+      targetType: 'THREAD',
+      userId: newThread.ownerId ?? null,
+      changesJson: JSON.stringify(changes),
+      createdAt,
+    }).run();
 
     broadcaster.toGuild(guildId, 'guild:audit', { guildId, actionType: 'THREAD_UPDATE', targetId: newThread.id, changes, createdAt });
   } catch (err) {
@@ -215,12 +279,17 @@ async function onThreadUpdate(client: Client, _db: DrizzleDb, oldThread: ThreadC
 async function onThreadDelete(client: Client, _db: DrizzleDb, thread: ThreadChannel) {
   try {
     const guildId = thread.guild.id;
-    const createdAt = Math.floor(Date.now() / 1000);
+    const createdAt = new Date();
 
-    sqlite.prepare(`
-      INSERT INTO guild_audit (guild_id, action_type, target_id, target_type, user_id, changes_json, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(guildId, 'THREAD_DELETE', thread.id, 'THREAD', thread.ownerId ?? null, JSON.stringify({ name: thread.name }), createdAt);
+    db.insert(guildAudit).values({
+      guildId,
+      actionType: 'THREAD_DELETE',
+      targetId: thread.id,
+      targetType: 'THREAD',
+      userId: thread.ownerId ?? null,
+      changesJson: JSON.stringify({ name: thread.name }),
+      createdAt,
+    }).run();
 
     broadcaster.toGuild(guildId, 'guild:audit', { guildId, actionType: 'THREAD_DELETE', targetId: thread.id, createdAt });
   } catch (err) {

@@ -1,5 +1,7 @@
 import { Client, Message } from 'discord.js-selfbot-v13';
-import { sqlite, DrizzleDb } from '@/database/index.js';
+import { DrizzleDb } from '@/database/index.js';
+import { messages } from '@/database/schema.js';
+import { db } from '@/database/index.js';
 import { logger } from '@/utils/logger.js';
 import { requireGuild } from '../guildFilter.js';
 import { emitMessageNew } from '@/dashboard/socket/broadcaster.js';
@@ -77,28 +79,21 @@ async function onMessageCreate(client: Client, _db: DrizzleDb, message: Message)
 
       // Insert message
       try {
-        sqlite.prepare(`
-          INSERT INTO messages (
-            id, guild_id, channel_id, author_id, content, created_at,
-            is_dm, reply_to_id, sticker_ids, sticker_links, embeds_json,
-            components_json, flags
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          ON CONFLICT(id) DO NOTHING
-        `).run(
-          message.id,
+        db.insert(messages).values({
+          id: message.id,
           guildId,
           channelId,
           authorId,
-          message.content ?? '',
-          message.createdTimestamp ? Math.floor(message.createdTimestamp / 1000) : Math.floor(Date.now() / 1000),
-          isDm ? 1 : 0,
-          message.reference?.messageId ?? null,
-          JSON.stringify(message.stickers?.map((s) => s.id) ?? []),
-          stickerLinks.length > 0 ? JSON.stringify(stickerLinks) : null,
-          message.embeds.length > 0 ? JSON.stringify(message.embeds) : null,
-          message.components.length > 0 ? JSON.stringify(message.components) : null,
-          message.flags?.bitfield ?? 0
-        );
+          content: message.content ?? '',
+          createdAt: message.createdTimestamp ? new Date(message.createdTimestamp) : new Date(),
+          isDm,
+          replyToId: message.reference?.messageId ?? null,
+          stickerIds: JSON.stringify(message.stickers?.map((s) => s.id) ?? []),
+          stickerLinks: stickerLinks.length > 0 ? JSON.stringify(stickerLinks) : null,
+          embedsJson: message.embeds.length > 0 ? JSON.stringify(message.embeds) : null,
+          componentsJson: message.components.length > 0 ? JSON.stringify(message.components) : null,
+          flags: message.flags?.bitfield ?? 0,
+        }).onConflictDoNothing().run();
       } catch (err) {
         logger.error({ err }, 'Failed to insert message');
       }

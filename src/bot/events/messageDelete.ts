@@ -1,5 +1,7 @@
 import { Client, Message, PartialMessage, Collection } from 'discord.js-selfbot-v13';
-import { sqlite, DrizzleDb } from '@/database/index.js';
+import { DrizzleDb, db } from '@/database/index.js';
+import { messages, messageDeletes } from '@/database/schema.js';
+import { eq } from 'drizzle-orm';
 import { logger } from '@/utils/logger.js';
 import { requireGuild } from '../guildFilter.js';
 import { broadcaster } from '@/dashboard/socket/broadcaster.js';
@@ -8,23 +10,27 @@ async function onMessageDelete(client: Client, _db: DrizzleDb, message: Message 
   try {
     const guildId = message.guildId ?? null;
     const channelId = message.channelId;
-    const deletedAt = Math.floor(Date.now() / 1000);
+    const deletedAt = new Date();
     const contentSnapshot = message.content ?? null;
     const authorId = message.author?.id ?? null;
 
     // Set messages.deleted_at
     try {
-      sqlite.prepare(`UPDATE messages SET deleted_at = ? WHERE id = ?`).run(deletedAt, message.id);
+      db.update(messages).set({ deletedAt }).where(eq(messages.id, message.id)).run();
     } catch (err) {
       logger.error({ err }, 'Failed to set message deleted_at');
     }
 
     // Insert delete audit
     try {
-      sqlite.prepare(`
-        INSERT INTO message_deletes (message_id, guild_id, channel_id, author_id, content_snapshot, deleted_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `).run(message.id, guildId, channelId, authorId, contentSnapshot, deletedAt);
+      db.insert(messageDeletes).values({
+        messageId: message.id,
+        guildId,
+        channelId,
+        authorId,
+        contentSnapshot,
+        deletedAt,
+      }).run();
     } catch (err) {
       logger.error({ err }, 'Failed to insert message delete');
     }
@@ -48,38 +54,31 @@ async function onMessageDelete(client: Client, _db: DrizzleDb, message: Message 
   }
 }
 
-async function onMessageDeleteBulk(client: Client, _db: DrizzleDb, messages: Collection<string, Message>) {
+async function onMessageDeleteBulk(client: Client, _db: DrizzleDb, msgsCollection: Collection<string, Message>) {
   try {
-    const first = messages.first?.() ?? null;
+    const first = msgsCollection.first?.() ?? null;
     const guildId = first?.guildId ?? null;
     const channelId = first?.channelId ?? 'unknown';
-    const deletedAt = Math.floor(Date.now() / 1000);
+    const deletedAt = new Date();
 
-    const deleteStmt = sqlite.prepare(`
-      INSERT INTO message_deletes (message_id, guild_id, channel_id, author_id, content_snapshot, deleted_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-    const updateStmt = sqlite.prepare(`UPDATE messages SET deleted_at = ? WHERE id = ?`);
-
-    const bulkTransaction = sqlite.transaction((msgs: any[]) => {
+    const msgs = Array.from(msgsCollection.values());
+    db.transaction((tx) => {
       for (const msg of msgs) {
-        updateStmt.run(deletedAt, msg.id);
-        deleteStmt.run(
-          msg.id,
-          msg.guildId ?? guildId,
-          msg.channelId ?? channelId,
-          msg.author?.id ?? null,
-          msg.content ?? null,
-          deletedAt
-        );
+        tx.update(messages).set({ deletedAt }).where(eq(messages.id, msg.id)).run();
+        tx.insert(messageDeletes).values({
+          messageId: msg.id,
+          guildId: msg.guildId ?? guildId,
+          channelId: msg.channelId ?? channelId,
+          authorId: msg.author?.id ?? null,
+          contentSnapshot: msg.content ?? null,
+          deletedAt,
+        }).run();
       }
     });
 
-    bulkTransaction(Array.from(messages.values()));
-
     broadcaster.toChannel(channelId, 'message:delete', {
       bulk: true,
-      count: messages.size,
+      count: msgsCollection.size,
       channelId,
       guildId,
       deletedAt,
@@ -88,7 +87,7 @@ async function onMessageDeleteBulk(client: Client, _db: DrizzleDb, messages: Col
     if (guildId) {
       broadcaster.toGuild(guildId, 'message:delete', {
         bulk: true,
-        count: messages.size,
+        count: msgsCollection.size,
         channelId,
         deletedAt,
       });

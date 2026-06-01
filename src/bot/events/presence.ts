@@ -1,5 +1,7 @@
 import { Client, Presence } from 'discord.js-selfbot-v13';
-import { sqlite, DrizzleDb } from '@/database/index.js';
+import { DrizzleDb, db } from '@/database/index.js';
+import { presenceUpdates, latestPresences } from '@/database/schema.js';
+import { eq, and } from 'drizzle-orm';
 import { broadcaster } from '@/dashboard/socket/broadcaster.js';
 
 /**
@@ -13,23 +15,34 @@ export function recordPresenceChange(
   clientStatus: string | null,
   activities: string | null
 ) {
-  const updatedAt = Math.floor(Date.now() / 1000);
+  const updatedAt = new Date();
 
-  sqlite.prepare(`
-    INSERT INTO presence_updates (guild_id, user_id, status, client_status, activities_json, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(guildId, userId, status, clientStatus, activities, updatedAt);
+  db.insert(presenceUpdates).values({
+    guildId,
+    userId,
+    status,
+    clientStatus,
+    activitiesJson: activities,
+    updatedAt,
+  }).run();
 
   if (guildId) {
-    sqlite.prepare(`
-      INSERT INTO latest_presences (guild_id, user_id, status, client_status, activities_json, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-      ON CONFLICT(guild_id, user_id) DO UPDATE SET
-        status = excluded.status,
-        client_status = excluded.client_status,
-        activities_json = excluded.activities_json,
-        updated_at = excluded.updated_at
-    `).run(guildId, userId, status, clientStatus, activities, updatedAt);
+    db.insert(latestPresences).values({
+      guildId,
+      userId,
+      status,
+      clientStatus,
+      activitiesJson: activities,
+      updatedAt,
+    }).onConflictDoUpdate({
+      target: [latestPresences.guildId, latestPresences.userId],
+      set: {
+        status,
+        clientStatus,
+        activitiesJson: activities,
+        updatedAt,
+      },
+    }).run();
   }
 
   const payload = { guildId, userId, status, clientStatus, activities, updatedAt };
@@ -58,27 +71,23 @@ export function handlePresenceUpdate(
   const clientStatus = newPresence.clientStatus ? JSON.stringify(newPresence.clientStatus) : null;
   const activities = newPresence.activities?.length ? JSON.stringify(newPresence.activities) : null;
 
-  // Lightweight deduplication: skip if state hasn't changed from our last record
-  if (guildId) {
-    const latest = sqlite
-      .prepare(`
-        SELECT status, client_status, activities_json
-        FROM latest_presences
-        WHERE guild_id = ? AND user_id = ?
-      `)
-      .get(guildId, userId) as
-      | { status: string | null; client_status: string | null; activities_json: string | null }
-      | undefined;
+    // Lightweight deduplication: skip if state hasn't changed from our last record
+    if (guildId) {
+      const latest = db
+        .select()
+        .from(latestPresences)
+        .where(and(eq(latestPresences.guildId, guildId), eq(latestPresences.userId, userId)))
+        .get();
 
-    if (
-      latest &&
-      latest.status === status &&
-      latest.client_status === clientStatus &&
-      latest.activities_json === activities
-    ) {
-      return;
+      if (
+        latest &&
+        latest.status === status &&
+        latest.clientStatus === clientStatus &&
+        latest.activitiesJson === activities
+      ) {
+        return;
+      }
     }
-  }
 
   recordPresenceChange(guildId, userId, status, clientStatus, activities);
 }

@@ -1,5 +1,7 @@
 import { Client, Message, PartialMessage } from 'discord.js-selfbot-v13';
-import { sqlite, DrizzleDb } from '@/database/index.js';
+import { DrizzleDb, db } from '@/database/index.js';
+import { messages, messageEdits } from '@/database/schema.js';
+import { eq } from 'drizzle-orm';
 import { logger } from '@/utils/logger.js';
 import { requireGuild } from '../guildFilter.js';
 import { broadcaster } from '@/dashboard/socket/broadcaster.js';
@@ -24,8 +26,8 @@ async function onMessageUpdate(client: Client, _db: DrizzleDb, oldMessage: Messa
     }
 
     const editedAt = newMessage.editedTimestamp
-      ? Math.floor(newMessage.editedTimestamp / 1000)
-      : Math.floor(Date.now() / 1000);
+      ? new Date(newMessage.editedTimestamp)
+      : new Date();
 
     const authorId = newMessage.author?.id ?? 'unknown';
 
@@ -84,45 +86,40 @@ async function onMessageUpdate(client: Client, _db: DrizzleDb, oldMessage: Messa
     }
 
     try {
-      sqlite.prepare(`
-        INSERT INTO messages (
-          id, guild_id, channel_id, author_id, content, created_at,
-          is_dm, reply_to_id, sticker_ids, sticker_links, embeds_json,
-          components_json, flags
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(id) DO NOTHING
-      `).run(
-        newMessage.id,
+      db.insert(messages).values({
+        id: newMessage.id,
         guildId,
         channelId,
         authorId,
-        oldMessage.content ?? newMessage.content ?? '',
-        newMessage.createdTimestamp ? Math.floor(newMessage.createdTimestamp / 1000) : Math.floor(Date.now() / 1000),
-        guildId ? 0 : 1,
-        newMessage.reference?.messageId ?? null,
-        JSON.stringify(newMessage.stickers?.map((s) => s.id) ?? []),
-        stickerLinks.length > 0 ? JSON.stringify(stickerLinks) : null,
-        newMessage.embeds.length > 0 ? JSON.stringify(newMessage.embeds) : null,
-        newMessage.components.length > 0 ? JSON.stringify(newMessage.components) : null,
-        newMessage.flags?.bitfield ?? 0
-      );
+        content: oldMessage.content ?? newMessage.content ?? '',
+        createdAt: newMessage.createdTimestamp ? new Date(newMessage.createdTimestamp) : new Date(),
+        isDm: guildId ? false : true,
+        replyToId: newMessage.reference?.messageId ?? null,
+        stickerIds: JSON.stringify(newMessage.stickers?.map((s) => s.id) ?? []),
+        stickerLinks: stickerLinks.length > 0 ? JSON.stringify(stickerLinks) : null,
+        embedsJson: newMessage.embeds.length > 0 ? JSON.stringify(newMessage.embeds) : null,
+        componentsJson: newMessage.components.length > 0 ? JSON.stringify(newMessage.components) : null,
+        flags: newMessage.flags?.bitfield ?? 0,
+      }).onConflictDoNothing().run();
     } catch (err) {
       logger.error({ err }, 'Failed to backfill missing message before edit');
     }
 
     // Update messages.edited_at
     try {
-      sqlite.prepare(`UPDATE messages SET edited_at = ? WHERE id = ?`).run(editedAt, newMessage.id);
+      db.update(messages).set({ editedAt }).where(eq(messages.id, newMessage.id)).run();
     } catch (err) {
       logger.error({ err }, 'Failed to update message edited_at');
     }
 
     // Insert edit audit
     try {
-      sqlite.prepare(`
-        INSERT INTO message_edits (message_id, old_content, new_content, edited_at)
-        VALUES (?, ?, ?, ?)
-      `).run(newMessage.id, oldContent, newContent, editedAt);
+      db.insert(messageEdits).values({
+        messageId: newMessage.id,
+        oldContent,
+        newContent,
+        editedAt,
+      }).run();
     } catch (err) {
       logger.error({ err }, 'Failed to insert message edit');
     }
