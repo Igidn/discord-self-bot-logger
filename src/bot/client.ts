@@ -1,9 +1,9 @@
 import { Client } from 'discord.js-selfbot-v13';
-import { config } from '../config/loader.js';
-import { logger } from '../utils/logger.js';
+import { config } from '@/config/loader.js';
+import { logger } from '@/utils/logger.js';
 import { registerEvents } from './events/index.js';
 
-import { enrichGuild } from '../services/enricher.js';
+import { enrichGuild } from '@/services/enricher.js';
 
 export const client = new Client({
   intents: [],

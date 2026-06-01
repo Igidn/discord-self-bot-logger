@@ -1,7 +1,7 @@
 import { Client, Constants } from 'discord.js-selfbot-v13';
-import { sqlite } from '../database/index.js';
-import { logger } from '../utils/logger.js';
-import { config } from '../config/loader.js';
+import { sqlite } from '@/database/index.js';
+import { logger } from '@/utils/logger.js';
+import { config } from '@/config/loader.js';
 
 /* ------------------------------------------------------------------ */
 /*  Top chatters query                                                 */

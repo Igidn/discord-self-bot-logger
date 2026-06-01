@@ -1,17 +1,17 @@
-import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
-import { Inbox, Mic, Radio, ShieldAlert, Users } from "lucide-react";
-import apiClient from "../api/client";
-import { formatDateTime, type TimestampValue } from "../utils/datetime";
-import { Badge } from "@/components/ui/badge";
+import { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Inbox, Mic, Radio, ShieldAlert, Users } from 'lucide-react';
+import apiClient from '../api/client';
+import { formatDateTime, type TimestampValue } from '../utils/datetime';
+import { Badge } from '@/components/ui/badge';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+} from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -19,9 +19,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+} from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 type ActivityTab = "members" | "voice" | "presence" | "audit";
 

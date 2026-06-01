@@ -1,8 +1,8 @@
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 import yaml from 'js-yaml';
 import { configSchema, type Config } from './schema.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '@/utils/logger.js';
 
 const CONFIG_PATH = path.resolve(process.cwd(), 'config.yaml');
 

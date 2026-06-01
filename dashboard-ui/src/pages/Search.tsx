@@ -1,20 +1,20 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
-import { Link, useSearchParams } from "react-router-dom";
-import { Search as SearchIcon } from "lucide-react";
-import apiClient from "../api/client";
-import { MessageCard } from "../components/MessageCard";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { useEffect, useMemo, useState, useCallback } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Search as SearchIcon } from 'lucide-react';
+import apiClient from '../api/client';
+import { MessageCard } from '../components/MessageCard';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { parseDiscordSearchQuery } from "@/lib/search-query";
-import type { TimestampValue } from "../utils/datetime";
+} from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { parseDiscordSearchQuery } from '@/lib/search-query';
+import type { TimestampValue } from '../utils/datetime';
 
 interface SearchResult {
   id: string;

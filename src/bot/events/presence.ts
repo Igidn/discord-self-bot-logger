@@ -1,6 +1,6 @@
 import { Client, Presence } from 'discord.js-selfbot-v13';
-import { sqlite } from '../../database/index.js';
-import { broadcaster } from '../../dashboard/socket/broadcaster.js';
+import { sqlite } from '@/database/index.js';
+import { broadcaster } from '@/dashboard/socket/broadcaster.js';
 
 /**
  * Record a presence change to the history table, upsert the latest

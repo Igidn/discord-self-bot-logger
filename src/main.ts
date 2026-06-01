@@ -1,13 +1,13 @@
-import { loadConfig } from "@/config/loader.js";
-import { initDatabase, closeDatabase } from "@/database/index.js";
-import { startDashboardServer } from "@/dashboard/server.js";
+import { loadConfig } from '@/config/loader.js';
+import { initDatabase, closeDatabase } from '@/database/index.js';
+import { startDashboardServer } from '@/dashboard/server.js';
 
-import { client, startBot } from "@/bot/client.js";
-import { db } from "@/database/index.js";
-import { startRetentionPurger } from "@/services/retentionPurger.js";
-import { startPresencePoller } from "@/services/presencePoller.js";
-import { logger } from "@/utils/logger.js";
-import type { Server as HttpServer } from "node:http";
+import { client, startBot } from '@/bot/client.js';
+import { db } from '@/database/index.js';
+import { startRetentionPurger } from '@/services/retentionPurger.js';
+import { startPresencePoller } from '@/services/presencePoller.js';
+import { logger } from '@/utils/logger.js';
+import type { Server as HttpServer } from 'node:http';
 
 async function main(): Promise<void> {
   logger.info("=== Discord Selfbot Logger starting ===");

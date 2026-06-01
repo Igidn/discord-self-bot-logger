@@ -1,13 +1,13 @@
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import * as schema from './schema.js';
-import { config } from '../config/loader.js';
-import { logger } from '../utils/logger.js';
-import { ensureDir } from '../utils/paths.js';
+import { config } from '@/config/loader.js';
+import { logger } from '@/utils/logger.js';
+import { ensureDir } from '@/utils/paths.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

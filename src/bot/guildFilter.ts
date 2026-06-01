@@ -1,6 +1,6 @@
 import { Client } from 'discord.js-selfbot-v13';
-import { config } from '../config/loader.js';
-import { logger } from '../utils/logger.js';
+import { config } from '@/config/loader.js';
+import { logger } from '@/utils/logger.js';
 
 export type EventHandler = (client: Client, db: any, ...args: any[]) => Promise<void> | void;
 

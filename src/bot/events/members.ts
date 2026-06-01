@@ -1,8 +1,8 @@
 import { Client, GuildMember, PartialGuildMember, GuildBan } from 'discord.js-selfbot-v13';
-import { sqlite } from '../../database/index.js';
-import { logger } from '../../utils/logger.js';
+import { sqlite } from '@/database/index.js';
+import { logger } from '@/utils/logger.js';
 import { requireGuild } from '../guildFilter.js';
-import { broadcaster } from '../../dashboard/socket/broadcaster.js';
+import { broadcaster } from '@/dashboard/socket/broadcaster.js';
 
 async function onGuildMemberAdd(client: Client, _db: any, member: GuildMember) {
   try {

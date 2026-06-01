@@ -1,9 +1,9 @@
 import { Client, Message } from 'discord.js-selfbot-v13';
-import { sqlite } from '../../database/index.js';
-import { logger } from '../../utils/logger.js';
+import { sqlite } from '@/database/index.js';
+import { logger } from '@/utils/logger.js';
 import { requireGuild } from '../guildFilter.js';
-import { emitMessageNew } from '../../dashboard/socket/broadcaster.js';
-import { downloadAttachment } from '../../services/attachmentDownloader.js';
+import { emitMessageNew } from '@/dashboard/socket/broadcaster.js';
+import { downloadAttachment } from '@/services/attachmentDownloader.js';
 import {
   enrichUser,
   enrichChannel,
