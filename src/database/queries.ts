@@ -200,6 +200,19 @@ function attachAuthors<T extends { authorId: string }>(
   })) as (T & MessageWithAuthor)[];
 }
 
+function paginateMessages<T extends { createdAt: Date | null | undefined; id: string }>(
+  rows: T[],
+  limit: number
+): { data: T[]; nextCursor: string | null } {
+  const hasMore = rows.length > limit;
+  const data = hasMore ? rows.slice(0, -1) : rows;
+  const nextCursor =
+    hasMore && data.length > 0
+      ? `${data[data.length - 1].createdAt?.getTime()}:${data[data.length - 1].id}`
+      : null;
+  return { data, nextCursor };
+}
+
 /* ------------------------------------------------------------------ */
 /*  getMessages                                                        */
 /* ------------------------------------------------------------------ */
@@ -234,13 +247,7 @@ export function getMessages(
     .limit(limit + 1)
     .all();
 
-  const hasMore = rows.length > limit;
-  const data = hasMore ? rows.slice(0, -1) : rows;
-  const nextCursor =
-    hasMore && data.length > 0
-      ? `${data[data.length - 1].createdAt?.getTime()}:${data[data.length - 1].id}`
-      : null;
-
+  const { data, nextCursor } = paginateMessages(rows, limit);
   return { data: attachAuthors(data), nextCursor };
 }
 
@@ -550,13 +557,7 @@ export function searchMessages(
       .limit(limit + 1)
       .all();
 
-    const hasMore = rows.length > limit;
-    const data = hasMore ? rows.slice(0, -1) : rows;
-    const nextCursor =
-      hasMore && data.length > 0
-        ? `${data[data.length - 1].createdAt?.getTime()}:${data[data.length - 1].id}`
-        : null;
-
+    const { data, nextCursor } = paginateMessages(rows, limit);
     return { data: attachAuthors(data), nextCursor };
   }
 
@@ -588,13 +589,7 @@ export function searchMessages(
         .limit(limit + 1)
         .all();
 
-      const hasMore = rows.length > limit;
-      const data = hasMore ? rows.slice(0, -1) : rows;
-      const nextCursor =
-        hasMore && data.length > 0
-          ? `${data[data.length - 1].createdAt?.getTime()}:${data[data.length - 1].id}`
-          : null;
-
+      const { data, nextCursor } = paginateMessages(rows, limit);
       return { data: attachAuthors(data), nextCursor };
     }
   } catch {
@@ -615,13 +610,7 @@ export function searchMessages(
     .limit(limit + 1)
     .all();
 
-  const hasMore = rows.length > limit;
-  const data = hasMore ? rows.slice(0, -1) : rows;
-  const nextCursor =
-    hasMore && data.length > 0
-      ? `${data[data.length - 1].createdAt?.getTime()}:${data[data.length - 1].id}`
-      : null;
-
+  const { data, nextCursor } = paginateMessages(rows, limit);
   return { data: attachAuthors(data), nextCursor };
 }
 
