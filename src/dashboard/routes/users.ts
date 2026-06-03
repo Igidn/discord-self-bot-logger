@@ -2,10 +2,7 @@ import { Router } from 'express';
 import z from 'zod';
 import {
   getUserById,
-  getUserMessageCount,
-  getUserGuildCount,
-  getUserFirstMessageAt,
-  getUserLastMessageAt,
+  getUserStats,
   getMessagesByUser,
 } from '@/database/queries.js';
 import { logger } from '@/utils/logger.js';
@@ -24,13 +21,10 @@ router.get('/:id', async (req, res, next) => {
       res.status(404).json({ error: 'User not found' });
       return;
     }
-    const messageCount = getUserMessageCount(req.params.id);
-    const guildCount = getUserGuildCount(req.params.id);
-    const firstMessageAt = getUserFirstMessageAt(req.params.id);
-    const lastMessageAt = getUserLastMessageAt(req.params.id);
+    const stats = getUserStats(req.params.id);
     res.json({
       ...user,
-      stats: { messageCount, guildCount, firstMessageAt, lastMessageAt },
+      stats,
     });
   } catch (err) {
     logger.error(err, 'Failed to fetch user');
