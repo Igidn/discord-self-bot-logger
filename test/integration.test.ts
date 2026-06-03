@@ -297,6 +297,7 @@ logging:
       assert.strictEqual(body.username, 'Alice');
       assert.ok(body.stats);
       assert.ok(typeof body.stats.messageCount === 'number');
+      assert.ok(typeof body.stats.guildCount === 'number');
     });
 
     it('should list messages by user', async () => {

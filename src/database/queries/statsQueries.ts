@@ -196,3 +196,23 @@ export function getUserMessageCount(userId: string): number {
     db.all<{ count: number }>(sql`SELECT count(*) AS count FROM messages WHERE author_id = ${userId}`)[0]?.count ?? 0
   );
 }
+
+export function getUserGuildCount(userId: string): number {
+  return (
+    db.all<{ count: number }>(sql`SELECT count(DISTINCT guild_id) AS count FROM messages WHERE author_id = ${userId}`)[0]?.count ?? 0
+  );
+}
+
+export function getUserFirstMessageAt(userId: string): number | null {
+  const rows = db.all<{ createdAt: number | null }>(
+    sql`SELECT min(created_at) AS createdAt FROM messages WHERE author_id = ${userId}`
+  );
+  return rows[0]?.createdAt ?? null;
+}
+
+export function getUserLastMessageAt(userId: string): number | null {
+  const rows = db.all<{ createdAt: number | null }>(
+    sql`SELECT max(created_at) AS createdAt FROM messages WHERE author_id = ${userId}`
+  );
+  return rows[0]?.createdAt ?? null;
+}

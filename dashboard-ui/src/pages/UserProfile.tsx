@@ -18,6 +18,12 @@ interface UserProfileData {
   avatarUrl?: string | null;
   bot?: number;
   firstSeenAt?: TimestampValue;
+  stats: {
+    messageCount: number;
+    guildCount: number;
+    firstMessageAt?: TimestampValue;
+    lastMessageAt?: TimestampValue;
+  };
 }
 
 interface UserStats {
@@ -57,17 +63,12 @@ export default function UserProfile() {
       try {
         const [uRes, mRes] = await Promise.all([
           apiClient.get<UserProfileData>(`/users/${id}`),
+          // Message preview is a separate concern from stats
           apiClient.get<{ data: UserMessage[] }>(`/users/${id}/messages?limit=20`),
         ]);
         setUser(uRes.data);
         setMessages(mRes.data.data);
-        // Derive simple stats
-        setStats({
-          messageCount: mRes.data.data.length,
-          guildCount: new Set(mRes.data.data.map((m) => m.guildId).filter(Boolean)).size,
-          firstMessageAt: mRes.data.data[mRes.data.data.length - 1]?.createdAt,
-          lastMessageAt: mRes.data.data[0]?.createdAt,
-        });
+        setStats(uRes.data.stats);
       } catch (err) {
         console.error(err);
       } finally {
