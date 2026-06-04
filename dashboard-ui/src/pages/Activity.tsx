@@ -35,6 +35,8 @@ interface MemberEvent {
   createdAt: TimestampValue;
   username?: string | null;
   avatarUrl?: string | null;
+  guildName?: string | null;
+  guildIconUrl?: string | null;
 }
 
 interface VoiceEvent {
@@ -48,6 +50,7 @@ interface VoiceEvent {
   createdAt: TimestampValue;
   username?: string | null;
   avatarUrl?: string | null;
+  channelName?: string | null;
 }
 
 interface PresenceEvent {
@@ -223,6 +226,33 @@ function StatusDot({ status }: { status?: string | null }) {
   );
 }
 
+function GuildCell({
+  guildId,
+  guildName,
+  guildIconUrl,
+}: {
+  guildId: string;
+  guildName?: string | null;
+  guildIconUrl?: string | null;
+}) {
+  if (!guildName) {
+    return (
+      <span className="truncate text-sm text-muted-foreground">{guildId}</span>
+    );
+  }
+
+  const fallback = guildName.slice(0, 2).toUpperCase();
+  return (
+    <div className="flex items-center gap-2 min-w-0">
+      <Avatar className="size-5 shrink-0">
+        <AvatarImage src={guildIconUrl ?? undefined} alt={guildName} />
+        <AvatarFallback className="text-[10px]">{fallback}</AvatarFallback>
+      </Avatar>
+      <span className="truncate text-sm font-medium">{guildName}</span>
+    </div>
+  );
+}
+
 function UserCell({
   userId,
   username,
@@ -308,8 +338,12 @@ function MemberTable({
                       avatarUrl={row.avatarUrl}
                     />
                   </TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    {row.guildId}
+                  <TableCell>
+                    <GuildCell
+                      guildId={row.guildId}
+                      guildName={row.guildName}
+                      guildIconUrl={row.guildIconUrl}
+                    />
                   </TableCell>
                   <TableCell className="text-right text-xs text-muted-foreground tabular-nums">
                     {formatDateTime(row.createdAt)}
@@ -374,9 +408,13 @@ function VoiceTable({
                       avatarUrl={row.avatarUrl}
                     />
                   </TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    {row.channelId ?? (
-                      <span className="text-muted-foreground/40">—</span>
+                  <TableCell>
+                    {row.channelName ? (
+                      <span className="text-sm font-medium">{row.channelName}</span>
+                    ) : row.channelId ? (
+                      <span className="text-sm text-muted-foreground">{row.channelId}</span>
+                    ) : (
+                      <span className="text-sm text-muted-foreground/40">—</span>
                     )}
                   </TableCell>
                   <TableCell className="text-right text-xs text-muted-foreground tabular-nums">
