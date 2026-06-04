@@ -138,11 +138,19 @@ function getPageMeta(pathname: string): {
     };
   }
 
+  if (pathname === '/users') {
+    return {
+      title: 'Users',
+      description: 'Browse all tracked users and their message activity.',
+      parent: { label: 'Overview', to: '/' },
+    };
+  }
+
   if (pathname.startsWith('/users/')) {
     return {
       title: 'User Profile',
       description: 'View message history and activity for a tracked user.',
-       parent: { label: 'Results', to: '/search' },
+      parent: { label: 'Users', to: '/users' },
     };
   }
 

@@ -4,14 +4,42 @@ import {
   getUserById,
   getUserStats,
   getMessagesByUser,
+  getAllUsers,
 } from '@/database/queries.js';
 import { logger } from '@/utils/logger.js';
 
 const router = Router();
 
+const listQuery = z.object({
+  search: z.string().optional(),
+  sort: z.enum(['messages_desc', 'messages_asc', 'username_asc', 'username_desc']).optional(),
+  page: z.coerce.number().min(1).default(1),
+  limit: z.coerce.number().min(1).max(100).default(20),
+});
+
 const messagesQuery = z.object({
   limit: z.coerce.number().min(1).max(100).default(50),
   cursor: z.string().optional(),
+});
+
+router.get('/', async (req, res, next) => {
+  try {
+    const query = listQuery.parse(req.query);
+    const result = getAllUsers({
+      search: query.search,
+      sort: query.sort,
+      page: query.page,
+      limit: query.limit,
+    });
+    res.json(result);
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: err.errors });
+      return;
+    }
+    logger.error(err, 'Failed to fetch users list');
+    next(err);
+  }
 });
 
 router.get('/:id', async (req, res, next) => {

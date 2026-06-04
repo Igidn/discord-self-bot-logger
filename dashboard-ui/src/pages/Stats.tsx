@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
-import { BarChart3, Hash, MessageSquare, TrendingUp, User } from 'lucide-react';
+import { ArrowUpRight, BarChart3, Hash, MessageSquare, TrendingUp, User } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import apiClient from '../api/client';
 import {
   Card,
@@ -252,12 +253,20 @@ export default function Stats() {
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base font-semibold">
-              <User className="size-4 text-muted-foreground" />
-              Top Users
-            </CardTitle>
-            <CardDescription>Most active users in the selected period</CardDescription>
+          <CardHeader className="flex flex-row items-start justify-between gap-3">
+            <div className="flex flex-col gap-1">
+              <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                <User className="size-4 text-muted-foreground" />
+                Top Users
+              </CardTitle>
+              <CardDescription>Most active users in the selected period</CardDescription>
+            </div>
+            <Button variant="ghost" size="sm" asChild className="gap-1 text-xs">
+              <Link to="/users">
+                Show All
+                <ArrowUpRight className="size-3.5" />
+              </Link>
+            </Button>
           </CardHeader>
           <CardContent>
             {loading ? (

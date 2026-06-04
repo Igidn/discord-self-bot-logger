@@ -9,6 +9,7 @@ import ChannelFeed from './pages/ChannelFeed';
 import Search from './pages/Search';
 import MessageDetail from './pages/MessageDetail';
 import UserProfile from './pages/UserProfile';
+import Users from './pages/Users';
 import Activity from './pages/Activity';
 import Stats from './pages/Stats';
 import Settings from './pages/Settings';
@@ -62,6 +63,7 @@ export default function App() {
               <Route path="/guilds/:id/channels/:channelId" element={<ChannelFeed />} />
               <Route path="/search" element={<Search />} />
               <Route path="/messages/:id" element={<MessageDetail />} />
+              <Route path="/users" element={<Users />} />
               <Route path="/users/:id" element={<UserProfile />} />
               <Route path="/activity" element={<Activity />} />
               <Route path="/stats" element={<Stats />} />

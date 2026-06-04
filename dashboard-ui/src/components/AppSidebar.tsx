@@ -6,6 +6,7 @@ import {
   MonitorCog,
   Server,
   Settings as SettingsIcon,
+  Users,
   Zap,
 } from 'lucide-react';
 
@@ -31,6 +32,7 @@ const monitorNav = [
 ];
 
 const exploreNav = [
+  { to: '/users', icon: Users, label: 'Users' },
   { to: '/setup', icon: MonitorCog, label: 'Setup' },
 ];
 
