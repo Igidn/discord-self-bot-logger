@@ -28,9 +28,12 @@ export function getMemberEvents(
       createdAt: schema.memberEvents.createdAt,
       username: schema.users.username,
       avatarUrl: schema.users.avatarUrl,
+      guildName: schema.guilds.name,
+      guildIconUrl: schema.guilds.iconUrl,
     })
     .from(schema.memberEvents)
     .leftJoin(schema.users, eq(schema.users.id, schema.memberEvents.userId))
+    .leftJoin(schema.guilds, eq(schema.guilds.id, schema.memberEvents.guildId))
     .$dynamic();
   if (conditions.length > 0) query = query.where(and(...conditions));
   return query.orderBy(desc(schema.memberEvents.createdAt)).limit(limit).all();
@@ -57,9 +60,11 @@ export function getVoiceEvents(
       createdAt: schema.voiceEvents.createdAt,
       username: schema.users.username,
       avatarUrl: schema.users.avatarUrl,
+      channelName: schema.channels.name,
     })
     .from(schema.voiceEvents)
     .leftJoin(schema.users, eq(schema.users.id, schema.voiceEvents.userId))
+    .leftJoin(schema.channels, eq(schema.channels.id, schema.voiceEvents.channelId))
     .$dynamic();
   if (conditions.length > 0) query = query.where(and(...conditions));
   return query.orderBy(desc(schema.voiceEvents.createdAt)).limit(limit).all();
