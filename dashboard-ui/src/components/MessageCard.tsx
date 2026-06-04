@@ -7,7 +7,7 @@ import { formatDateAndTime, type TimestampValue } from '../utils/datetime';
 
 interface MessageAuthor {
   id: string;
-  username: string;
+  username: string | null;
   discriminator?: string | null;
   avatarUrl?: string | null;
 }
@@ -65,7 +65,7 @@ export function MessageCard({ message, compact, isLive }: MessageCardProps) {
       <div className={cn('flex gap-3', compact ? 'p-3' : 'p-4')}>
         <Link to={`/users/${message.authorId}`} className="shrink-0">
           <Avatar className={compact ? 'size-8' : 'size-10'}>
-            <AvatarImage src={message.author?.avatarUrl ?? undefined} alt={message.author?.username} />
+            <AvatarImage src={message.author?.avatarUrl ?? undefined} alt={message.author?.username ?? undefined} />
             <AvatarFallback className="bg-primary/10 text-primary">
               {(message.author?.username ?? '?').charAt(0).toUpperCase()}
             </AvatarFallback>

@@ -8,11 +8,17 @@ import {
   Paperclip,
   FileText,
   Download,
+  MessageSquare,
+  Loader2,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import apiClient from '../api/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { formatDateTime, type TimestampValue } from '../utils/datetime';
+import { MessageCard } from '../components/MessageCard';
 
 interface Attachment {
   id: string;
@@ -64,6 +70,25 @@ interface MessageDetailData {
   } | null;
 }
 
+interface SurroundingMessage {
+  id: string;
+  guildId?: string | null;
+  channelId: string;
+  authorId: string;
+  content?: string | null;
+  createdAt: TimestampValue;
+  editedAt?: TimestampValue;
+  deletedAt?: TimestampValue;
+  replyToId?: string | null;
+  stickerLinks?: string | null;
+  embedsJson?: string | null;
+  author?: {
+    id: string;
+    username: string | null;
+    avatarUrl?: string | null;
+  } | null;
+}
+
 function isImageAttachment(att: Attachment): boolean {
   if (att.contentType?.startsWith('image/')) return true;
   const ext = att.fileName.split('.').pop()?.toLowerCase();
@@ -84,6 +109,13 @@ export default function MessageDetail() {
   const [reactions, setReactions] = useState<Reaction[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [showSurrounding, setShowSurrounding] = useState(false);
+  const [beforeCount, setBeforeCount] = useState(20);
+  const [afterCount, setAfterCount] = useState(20);
+  const [surroundingBefore, setSurroundingBefore] = useState<SurroundingMessage[]>([]);
+  const [surroundingAfter, setSurroundingAfter] = useState<SurroundingMessage[]>([]);
+  const [loadingSurrounding, setLoadingSurrounding] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -107,6 +139,37 @@ export default function MessageDetail() {
     }
     fetchData();
   }, [id]);
+
+  const fetchSurrounding = async () => {
+    if (!id) return;
+    setLoadingSurrounding(true);
+    try {
+      const res = await apiClient.get<{ before: SurroundingMessage[]; after: SurroundingMessage[] }>(
+        `/messages/${id}/surrounding`,
+        {
+          params: {
+            beforeCount: String(beforeCount),
+            afterCount: String(afterCount),
+          },
+        }
+      );
+      setSurroundingBefore(res.data.before);
+      setSurroundingAfter(res.data.after);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingSurrounding(false);
+    }
+  };
+
+  const handleToggleSurrounding = () => {
+    if (!showSurrounding) {
+      setShowSurrounding(true);
+      fetchSurrounding();
+    } else {
+      setShowSurrounding(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -223,6 +286,103 @@ export default function MessageDetail() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Surrounding Messages */}
+      <div className="rounded-xl border bg-card/70 overflow-hidden">
+        <button
+          onClick={handleToggleSurrounding}
+          className="w-full p-4 flex items-center gap-2 hover:bg-accent/20 transition-colors"
+        >
+          <MessageSquare className="w-4 h-4 text-primary" />
+          <h2 className="font-semibold text-sm">Surrounding Messages</h2>
+          <span className="ml-auto text-xs text-muted-foreground">
+            {showSurrounding ? (
+              <ChevronUp className="w-4 h-4" />
+            ) : (
+              <ChevronDown className="w-4 h-4" />
+            )}
+          </span>
+        </button>
+
+        {showSurrounding && (
+          <div className="p-4 space-y-4 border-t">
+            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3">
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-muted-foreground whitespace-nowrap">Before</label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={beforeCount}
+                  onChange={(e) => setBeforeCount(Number(e.target.value))}
+                  className="w-20 h-8 text-sm"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-muted-foreground whitespace-nowrap">After</label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={afterCount}
+                  onChange={(e) => setAfterCount(Number(e.target.value))}
+                  className="w-20 h-8 text-sm"
+                />
+              </div>
+              <button
+                onClick={fetchSurrounding}
+                disabled={loadingSurrounding}
+                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {loadingSurrounding ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <MessageSquare className="w-3.5 h-3.5" />
+                )}
+                Load
+              </button>
+            </div>
+
+            {loadingSurrounding ? (
+              <div className="text-sm text-muted-foreground">Loading surrounding messages...</div>
+            ) : (
+              <div className="space-y-2">
+                {surroundingBefore.length > 0 && (
+                  <div className="space-y-2">
+                    {surroundingBefore.map((msg) => (
+                      <Link key={msg.id} to={`/messages/${msg.id}`} className="block">
+                        <MessageCard message={msg} compact />
+                      </Link>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center gap-3 py-1">
+                  <div className="flex-1 h-px bg-border" />
+                  <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+                    Current message
+                  </span>
+                  <div className="flex-1 h-px bg-border" />
+                </div>
+
+                {surroundingAfter.length > 0 && (
+                  <div className="space-y-2">
+                    {surroundingAfter.map((msg) => (
+                      <Link key={msg.id} to={`/messages/${msg.id}`} className="block">
+                        <MessageCard message={msg} compact />
+                      </Link>
+                    ))}
+                  </div>
+                )}
+
+                {surroundingBefore.length === 0 && surroundingAfter.length === 0 && (
+                  <div className="text-sm text-muted-foreground">No surrounding messages found.</div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Attachments */}

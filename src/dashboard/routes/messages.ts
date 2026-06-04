@@ -6,6 +6,7 @@ import {
   searchMessages,
   getMessageEdits,
   getMessageReactions,
+  getSurroundingMessages,
 } from '@/database/queries.js';
 import { db } from '@/database/index.js';
 import { attachments, messages, users } from '@/database/schema.js';
@@ -104,6 +105,23 @@ router.get('/:id', async (req, res, next) => {
         : null;
 
     res.json({ ...message, author: author ?? null });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/:id/surrounding', async (req, res, next) => {
+  try {
+    const beforeCount = Math.min(Number(req.query.beforeCount) || 20, 100);
+    const afterCount = Math.min(Number(req.query.afterCount) || 20, 100);
+
+    const result = getSurroundingMessages(req.params.id, beforeCount, afterCount);
+    if (!result) {
+      res.status(404).json({ error: 'Message not found' });
+      return;
+    }
+
+    res.json(result);
   } catch (err) {
     next(err);
   }
