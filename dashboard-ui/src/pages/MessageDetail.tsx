@@ -315,7 +315,10 @@ export default function MessageDetail() {
                   min={0}
                   max={100}
                   value={beforeCount}
-                  onChange={(e) => setBeforeCount(Number(e.target.value))}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    setBeforeCount(Number.isNaN(val) ? 0 : val);
+                  }}
                   className="w-20 h-8 text-sm"
                 />
               </div>
@@ -326,7 +329,10 @@ export default function MessageDetail() {
                   min={0}
                   max={100}
                   value={afterCount}
-                  onChange={(e) => setAfterCount(Number(e.target.value))}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    setAfterCount(Number.isNaN(val) ? 0 : val);
+                  }}
                   className="w-20 h-8 text-sm"
                 />
               </div>
@@ -358,13 +364,15 @@ export default function MessageDetail() {
                   </div>
                 )}
 
-                <div className="flex items-center gap-3 py-1">
-                  <div className="flex-1 h-px bg-border" />
-                  <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
-                    Current message
-                  </span>
-                  <div className="flex-1 h-px bg-border" />
-                </div>
+                {(surroundingBefore.length > 0 || surroundingAfter.length > 0) && (
+                  <div className="flex items-center gap-3 py-1">
+                    <div className="flex-1 h-px bg-border" />
+                    <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+                      Current message
+                    </span>
+                    <div className="flex-1 h-px bg-border" />
+                  </div>
+                )}
 
                 {surroundingAfter.length > 0 && (
                   <div className="space-y-2">

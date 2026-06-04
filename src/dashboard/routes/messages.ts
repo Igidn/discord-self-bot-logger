@@ -112,8 +112,10 @@ router.get('/:id', async (req, res, next) => {
 
 router.get('/:id/surrounding', async (req, res, next) => {
   try {
-    const beforeCount = Math.min(Number(req.query.beforeCount) || 20, 100);
-    const afterCount = Math.min(Number(req.query.afterCount) || 20, 100);
+    const rawBefore = Number(req.query.beforeCount);
+    const beforeCount = Number.isFinite(rawBefore) ? Math.max(0, Math.min(rawBefore, 100)) : 20;
+    const rawAfter = Number(req.query.afterCount);
+    const afterCount = Number.isFinite(rawAfter) ? Math.max(0, Math.min(rawAfter, 100)) : 20;
 
     const result = getSurroundingMessages(req.params.id, beforeCount, afterCount);
     if (!result) {

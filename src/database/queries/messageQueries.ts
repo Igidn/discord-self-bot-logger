@@ -131,10 +131,16 @@ export function getSurroundingMessages(
     .where(
       and(
         eq(schema.messages.channelId, target.channelId),
-        lt(schema.messages.createdAt, target.createdAt)
+        or(
+          lt(schema.messages.createdAt, target.createdAt),
+          and(
+            eq(schema.messages.createdAt, target.createdAt),
+            lt(schema.messages.id, target.id)
+          )
+        )
       )
     )
-    .orderBy(desc(schema.messages.createdAt))
+    .orderBy(desc(schema.messages.createdAt), desc(schema.messages.id))
     .limit(beforeCount)
     .all();
 
@@ -144,10 +150,16 @@ export function getSurroundingMessages(
     .where(
       and(
         eq(schema.messages.channelId, target.channelId),
-        gt(schema.messages.createdAt, target.createdAt)
+        or(
+          gt(schema.messages.createdAt, target.createdAt),
+          and(
+            eq(schema.messages.createdAt, target.createdAt),
+            gt(schema.messages.id, target.id)
+          )
+        )
       )
     )
-    .orderBy(asc(schema.messages.createdAt))
+    .orderBy(asc(schema.messages.createdAt), asc(schema.messages.id))
     .limit(afterCount)
     .all();
 
