@@ -1,4 +1,4 @@
-import { eq, and, or, lt, desc } from 'drizzle-orm';
+import { eq, and, or, lt, gt, desc, asc } from 'drizzle-orm';
 import { db } from '../index.js';
 import * as schema from '../schema.js';
 import { buildMessageConditions, attachAuthors, paginateMessages } from './helpers.js';
@@ -111,4 +111,61 @@ export function getMessageReactions(messageId: string) {
     .where(eq(schema.reactions.messageId, messageId))
     .orderBy(desc(schema.reactions.createdAt))
     .all();
+}
+
+/* ------------------------------------------------------------------ */
+/*  getSurroundingMessages                                             */
+/* ------------------------------------------------------------------ */
+
+export function getSurroundingMessages(
+  messageId: string,
+  beforeCount: number,
+  afterCount: number
+): { before: (typeof schema.messages.$inferSelect & { author?: { id: string; username: string | null; avatarUrl?: string | null } | null })[]; after: (typeof schema.messages.$inferSelect & { author?: { id: string; username: string | null; avatarUrl?: string | null } | null })[] } | null {
+  const target = db.select().from(schema.messages).where(eq(schema.messages.id, messageId)).get();
+  if (!target) return null;
+
+  const beforeRows = db
+    .select()
+    .from(schema.messages)
+    .where(
+      and(
+        eq(schema.messages.channelId, target.channelId),
+        or(
+          lt(schema.messages.createdAt, target.createdAt),
+          and(
+            eq(schema.messages.createdAt, target.createdAt),
+            lt(schema.messages.id, target.id)
+          )
+        )
+      )
+    )
+    .orderBy(desc(schema.messages.createdAt), desc(schema.messages.id))
+    .limit(beforeCount)
+    .all();
+
+  const afterRows = db
+    .select()
+    .from(schema.messages)
+    .where(
+      and(
+        eq(schema.messages.channelId, target.channelId),
+        or(
+          gt(schema.messages.createdAt, target.createdAt),
+          and(
+            eq(schema.messages.createdAt, target.createdAt),
+            gt(schema.messages.id, target.id)
+          )
+        )
+      )
+    )
+    .orderBy(asc(schema.messages.createdAt), asc(schema.messages.id))
+    .limit(afterCount)
+    .all();
+
+  // Reverse before rows so they appear in chronological order
+  return {
+    before: attachAuthors(beforeRows.reverse()),
+    after: attachAuthors(afterRows),
+  };
 }
