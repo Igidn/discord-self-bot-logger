@@ -72,11 +72,6 @@ export default function UsersPage() {
     return () => clearTimeout(id);
   }, [search]);
 
-  // Reset to page 1 when search or sort changes
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch, sort]);
-
   useEffect(() => {
     async function fetchUsers() {
       setLoading(true);
@@ -138,7 +133,7 @@ export default function UsersPage() {
                 placeholder="Search by username…"
                 className="pl-9"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => { setPage(1); setSearch(e.target.value); }}
               />
             </div>
             <div className="flex items-center gap-2">
@@ -146,7 +141,7 @@ export default function UsersPage() {
               <div className="relative">
                 <select
                   value={sort}
-                  onChange={(e) => setSort(e.target.value as SortOption)}
+                   onChange={(e) => { setPage(1); setSort(e.target.value as SortOption); }}
                   className="h-9 appearance-none rounded-md border border-input bg-background pr-8 pl-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 >
                   {(Object.entries(SORT_LABELS) as [SortOption, string][]).map(([value, label]) => (

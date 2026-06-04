@@ -58,11 +58,14 @@ export function getAllUsers(query: AllUsersQuery = {}): AllUsersResult {
       u.username,
       u.avatar_url AS avatarUrl,
       u.bot,
-      count(m.id) AS messageCount
+      COALESCE(m.messageCount, 0) AS messageCount
     FROM users u
-    LEFT JOIN messages m ON m.author_id = u.id
+    LEFT JOIN (
+      SELECT author_id, count(*) AS messageCount
+      FROM messages
+      GROUP BY author_id
+    ) m ON m.author_id = u.id
     WHERE (${searchParam} = '' OR u.username LIKE ${searchParam} ESCAPE '\')
-    GROUP BY u.id
     ORDER BY ${orderBySql}
     LIMIT ${limit} OFFSET ${offset}
   `);
