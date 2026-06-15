@@ -12,7 +12,7 @@
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
-    "better-sqlite3": "^11.6.0",
+    "better-sqlite3": "^12.10.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "discord.js-selfbot-v13": "git+https://github.com/Igidn/discord.js-selfbot-v13.git",
