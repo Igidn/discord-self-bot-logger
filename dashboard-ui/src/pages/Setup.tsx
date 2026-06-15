@@ -20,7 +20,6 @@ export default function Setup() {
   const [guilds, setGuilds] = useState<GuildItem[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   // Manual guild ID input
@@ -45,15 +44,12 @@ export default function Setup() {
   }, []);
 
   const persistSelection = async (nextSelected: Set<string>) => {
-    setSaving(true);
     setSaveError(null);
     try {
       await apiClient.post('/config/guilds', { guildIds: Array.from(nextSelected) });
     } catch (err: any) {
       setSaveError(err?.response?.data?.error || 'Failed to save guild selection');
       throw err;
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -128,7 +124,6 @@ export default function Setup() {
           <h1 className="text-2xl font-bold tracking-tight">Guild Setup</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Select which guilds to monitor. Only selected guilds will be logged.
-            {saving && <span className="ml-2 text-xs">Saving...</span>}
           </p>
         </div>
         <Button
