@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Save, CheckCircle2, Plus, X } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Plus, X } from 'lucide-react';
 import apiClient from '../api/client';
 import { GuildPicker } from '../components/GuildPicker';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,8 @@ export default function Setup() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const savedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Manual guild ID input
   const [manualInput, setManualInput] = useState('');
@@ -42,23 +44,53 @@ export default function Setup() {
       }
     }
     fetchGuilds();
+
+    return () => {
+      if (savedTimeoutRef.current) {
+        clearTimeout(savedTimeoutRef.current);
+      }
+    };
   }, []);
 
-  const toggleGuild = (id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const persistSelection = async (nextSelected: Set<string>) => {
+    setSaving(true);
     setSaved(false);
+    setSaveError(null);
+    if (savedTimeoutRef.current) {
+      clearTimeout(savedTimeoutRef.current);
+      savedTimeoutRef.current = null;
+    }
+    try {
+      await apiClient.post('/config/guilds', { guildIds: Array.from(nextSelected) });
+      setSaved(true);
+      savedTimeoutRef.current = setTimeout(() => setSaved(false), 2000);
+    } catch (err: any) {
+      setSaveError(err?.response?.data?.error || 'Failed to save guild selection');
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleGuild = async (id: string) => {
+    const previous = new Set(selected);
+    const next = new Set(previous);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+
+    setSelected(next);
+    try {
+      await persistSelection(next);
+    } catch {
+      setSelected(previous);
+    }
   };
 
   const manualIds = Array.from(selected).filter(
     (id) => !guilds.some((g) => g.id === id)
   );
 
-  const addManualId = () => {
+  const addManualId = async () => {
     const trimmed = manualInput.trim();
     if (!trimmed) {
       setManualError('Please enter a guild ID');
@@ -73,35 +105,33 @@ export default function Setup() {
       setManualError('Invalid guild ID format (expected 17-20 digits)');
       return;
     }
-    setSelected((prev) => {
-      const next = new Set(prev);
-      next.add(trimmed);
-      return next;
-    });
+
+    const previous = new Set(selected);
+    const next = new Set(previous);
+    next.add(trimmed);
+    const previousInput = manualInput;
+
+    setSelected(next);
     setManualInput('');
     setManualError(null);
-    setSaved(false);
-  };
-
-  const removeManualId = (id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
-    setSaved(false);
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
     try {
-      await apiClient.post('/config/guilds', { guildIds: Array.from(selected) });
-      setSaved(true);
-      setTimeout(() => navigate('/'), 800);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSaving(false);
+      await persistSelection(next);
+    } catch {
+      setSelected(previous);
+      setManualInput(previousInput);
+    }
+  };
+
+  const removeManualId = async (id: string) => {
+    const previous = new Set(selected);
+    const next = new Set(previous);
+    next.delete(id);
+
+    setSelected(next);
+    try {
+      await persistSelection(next);
+    } catch {
+      setSelected(previous);
     }
   };
 
@@ -113,26 +143,32 @@ export default function Setup() {
           <h1 className="text-2xl font-bold tracking-tight">Guild Setup</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Select which guilds to monitor. Only selected guilds will be logged.
+            {saving && <span className="ml-2 text-xs">Saving...</span>}
           </p>
         </div>
         <Button
-          onClick={handleSave}
-          disabled={saving}
+          onClick={() => navigate('/')}
           size="sm"
           className="gap-2 shrink-0"
         >
-          <Save className="size-4" />
-          {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Selection'}
+          Go to Dashboard
+          <ArrowRight className="size-4" />
         </Button>
       </div>
 
-      {/* Success banner */}
+      {/* Save status banner */}
       {saved && (
         <div className="flex items-center gap-2 rounded-md bg-emerald-500/10 border border-emerald-500/20 px-4 py-3">
           <CheckCircle2 className="size-4 shrink-0 text-emerald-500" />
           <p className="text-sm text-emerald-600 dark:text-emerald-400">
-            Configuration saved. Redirecting to overview...
+            Configuration saved.
           </p>
+        </div>
+      )}
+      {saveError && (
+        <div className="flex items-center gap-2 rounded-md bg-destructive/10 border border-destructive/20 px-4 py-3">
+          <X className="size-4 shrink-0 text-destructive" />
+          <p className="text-sm text-destructive">{saveError}</p>
         </div>
       )}
 
