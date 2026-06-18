@@ -38,6 +38,8 @@ interface Reaction {
   userId: string;
   emojiId?: string | null;
   emojiName?: string | null;
+  username?: string | null;
+  avatarUrl?: string | null;
 }
 
 interface Edit {
@@ -116,6 +118,7 @@ export default function MessageDetail() {
   const [surroundingBefore, setSurroundingBefore] = useState<SurroundingMessage[]>([]);
   const [surroundingAfter, setSurroundingAfter] = useState<SurroundingMessage[]>([]);
   const [loadingSurrounding, setLoadingSurrounding] = useState(false);
+  const [expandedReactions, setExpandedReactions] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!id) return;
@@ -457,18 +460,63 @@ export default function MessageDetail() {
           <div className="p-4 border-b flex items-center gap-2">
             <Smile className="w-4 h-4 text-yellow-500" />
             <h2 className="font-semibold text-sm">Reactions</h2>
+            <span className="ml-auto text-xs text-muted-foreground">{reactions.length}</span>
           </div>
-          <div className="p-4 flex flex-wrap gap-2">
-            {reactions.map((r, i) => (
-              <Link
-                key={`${r.id}-${i}`}
-                to={`/users/${r.userId}`}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted border text-sm hover:bg-accent transition-colors"
-              >
-                <span>{r.emojiName ?? r.emojiId ?? '❓'}</span>
-                <span className="text-xs text-muted-foreground">{r.userId.slice(0, 8)}</span>
-              </Link>
-            ))}
+          <div className="p-4 flex flex-wrap gap-3">
+            {Object.values(
+              reactions.reduce<Record<string, Reaction[]>>((groups, r) => {
+                const key = r.emojiId ?? r.emojiName ?? 'unknown';
+                if (!groups[key]) groups[key] = [];
+                groups[key].push(r);
+                return groups;
+              }, {})
+            ).map((group) => {
+              const emojiKey = group[0].emojiId ?? group[0].emojiName ?? 'unknown';
+              const emojiDisplay = group[0].emojiName ?? group[0].emojiId ?? '❓';
+              const isExpanded = expandedReactions.has(emojiKey);
+
+              return (
+                <div key={emojiKey} className="flex flex-col gap-2">
+                  <button
+                    onClick={() => {
+                      setExpandedReactions((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(emojiKey)) {
+                          next.delete(emojiKey);
+                        } else {
+                          next.add(emojiKey);
+                        }
+                        return next;
+                      });
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted border text-sm hover:bg-accent transition-colors"
+                  >
+                    <span className="text-base leading-none">{emojiDisplay}</span>
+                    <span className="text-xs font-medium text-muted-foreground">{group.length}</span>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="flex flex-col gap-1.5 pl-1">
+                      {group.map((r) => (
+                        <Link
+                          key={r.id}
+                          to={`/users/${r.userId}`}
+                          className="inline-flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent transition-colors"
+                        >
+                          <Avatar className="size-5">
+                            <AvatarImage src={r.avatarUrl ?? undefined} alt={r.username ?? r.userId} />
+                            <AvatarFallback className="bg-primary/10 text-primary text-[10px]">
+                              {(r.username ?? '?').charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-xs text-foreground">@{r.username ?? r.userId}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

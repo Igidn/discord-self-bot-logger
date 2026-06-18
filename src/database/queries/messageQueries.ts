@@ -106,8 +106,19 @@ export function getMessageEdits(messageId: string) {
 
 export function getMessageReactions(messageId: string) {
   return db
-    .select()
+    .select({
+      id: schema.reactions.id,
+      messageId: schema.reactions.messageId,
+      userId: schema.reactions.userId,
+      emojiId: schema.reactions.emojiId,
+      emojiName: schema.reactions.emojiName,
+      added: schema.reactions.added,
+      createdAt: schema.reactions.createdAt,
+      username: schema.users.username,
+      avatarUrl: schema.users.avatarUrl,
+    })
     .from(schema.reactions)
+    .leftJoin(schema.users, eq(schema.reactions.userId, schema.users.id))
     .where(eq(schema.reactions.messageId, messageId))
     .orderBy(desc(schema.reactions.createdAt))
     .all();
