@@ -3,6 +3,7 @@ import {
   Activity,
   BarChart3,
   LayoutDashboard,
+  MessagesSquare,
   MonitorCog,
   Server,
   Settings as SettingsIcon,
@@ -32,6 +33,7 @@ const monitorNav = [
 ];
 
 const exploreNav = [
+  { to: '/browse', icon: MessagesSquare, label: 'Browse All' },
   { to: '/users', icon: Users, label: 'Users' },
   { to: '/setup', icon: MonitorCog, label: 'Setup' },
 ];

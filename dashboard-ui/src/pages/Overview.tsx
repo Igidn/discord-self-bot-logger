@@ -308,7 +308,7 @@ export default function Overview() {
             <CardDescription>Latest captured messages across tracked guilds</CardDescription>
           </div>
           <Button variant="outline" size="sm" className="gap-1.5 text-xs" asChild>
-            <Link to="/search">
+            <Link to="/browse">
               <Search className="size-3.5" />
               Browse all
               <ArrowRight className="size-3.5" />

@@ -91,6 +91,14 @@ function getPageMeta(pathname: string): {
     };
   }
 
+  if (pathname === '/browse') {
+    return {
+      title: 'Browse All',
+      description: 'Scroll through every captured message with filters.',
+      parent: { label: 'Overview', to: '/' },
+    };
+  }
+
   if (pathname === '/activity') {
     return {
       title: 'Activity',
