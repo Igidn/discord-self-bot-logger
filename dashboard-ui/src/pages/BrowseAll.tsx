@@ -19,6 +19,7 @@ import {
   RotateCcw,
   Search as SearchIcon,
   SlidersHorizontal,
+  Sticker,
   User as UserIcon,
   X,
 } from 'lucide-react';
@@ -81,6 +82,7 @@ interface BrowseMessage {
   embedsJson?: string | null;
   componentsJson?: string | null;
   flags?: number | null;
+  attachmentCount?: number | null;
   author?: { id: string; username: string | null; avatarUrl?: string | null } | null;
   channel?: { id: string; name: string | null; type: number | null } | null;
   attachments: AttachmentThumb[];
@@ -838,9 +840,10 @@ function BrowseRow({ message, dimmed }: { message: BrowseMessage; dimmed: boolea
   const edited = !!message.editedAt;
 
   const embeds = useMemo(() => parseEmbeds(message.embedsJson), [message.embedsJson]);
+  const stickerUrls = useMemo(() => parseStickers(message.stickerLinks), [message.stickerLinks]);
   const thumbUrls = useMemo(
-    () => collectThumbUrls(message.attachments, embeds),
-    [message.attachments, embeds]
+    () => collectThumbUrls(message.attachments, embeds, stickerUrls),
+    [message.attachments, embeds, stickerUrls]
   );
   const long = useMemo(() => {
     if (!content) return false;
@@ -904,6 +907,18 @@ function BrowseRow({ message, dimmed }: { message: BrowseMessage; dimmed: boolea
             )}
           >
             {content}
+          </p>
+        ) : stickerUrls.length > 0 ? (
+          <p className="text-sm italic text-muted-foreground">
+            <Sticker className="mr-1 inline-block size-3.5" />
+            {stickerUrls.length} sticker{stickerUrls.length > 1 ? 's' : ''}
+            {dimmed && <span className="ml-1.5">· system event</span>}
+          </p>
+        ) : (message.attachmentCount ?? 0) > 0 ? (
+          <p className="text-sm italic text-muted-foreground">
+            <MessageSquareOff className="mr-1 inline-block size-3.5" />
+            {(message.attachmentCount ?? 0)} attachment{(message.attachmentCount ?? 0) > 1 ? 's' : ''}
+            {dimmed && <span className="ml-1.5">· system event</span>}
           </p>
         ) : (
           <p className="text-sm italic text-muted-foreground">
@@ -1042,13 +1057,48 @@ function parseEmbeds(json?: string | null): ParsedEmbed[] {
   }
 }
 
+interface ParsedSticker {
+  name: string;
+  url: string;
+}
+
+/** Parse `sticker_links`, a JSON array of markdown hyperlinks like
+ *  `[StickerName](https://media.discordapp.net/stickers/…/…png?size=300)`.
+ *  APNG/JSON-format stickers don't have a raster preview, so those are
+ *  excluded from the thumbnail set but still count as non-system content. */
+function parseStickers(json?: string | null): ParsedSticker[] {
+  if (!json) return [];
+  let raw: unknown;
+  try {
+    raw = JSON.parse(json);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(raw)) return [];
+  const out: ParsedSticker[] = [];
+  for (const entry of raw) {
+    if (typeof entry !== 'string') continue;
+    const match = entry.match(/^\[([^\]]*)\]\(([^)]+)\)$/);
+    if (!match) continue;
+    const url = match[2];
+    // Only raster formats render as thumbnails; skip Lottie (json) & APNG.
+    if (/\.(json)$/i.test(url)) continue;
+    out.push({ name: match[1] || 'sticker', url });
+  }
+  return out;
+}
+
 interface ThumbUrl {
   src: string;
   alt: string;
   contentType?: string | null;
 }
 
-function collectThumbUrls(attachments: AttachmentThumb[], embeds: ParsedEmbed[]): ThumbUrl[] {
+function collectThumbUrls(
+  attachments: AttachmentThumb[],
+  embeds: ParsedEmbed[],
+  stickers: ParsedSticker[]
+): ThumbUrl[] {
   const thumbs: ThumbUrl[] = [];
   for (const a of attachments) {
     const isImage = (a.contentType ?? '').startsWith('image/') || !a.contentType;
@@ -1058,6 +1108,11 @@ function collectThumbUrls(attachments: AttachmentThumb[], embeds: ParsedEmbed[])
       alt: a.fileName ?? 'attachment',
       contentType: a.contentType,
     });
+  }
+  for (const s of stickers) {
+    if (s.url.startsWith('http://') || s.url.startsWith('https://')) {
+      thumbs.push({ src: s.url, alt: s.name });
+    }
   }
   for (const e of embeds) {
     const url = e.image?.url ?? e.thumbnail?.url;
@@ -1071,14 +1126,22 @@ function collectThumbUrls(attachments: AttachmentThumb[], embeds: ParsedEmbed[])
 /**
  * System-message heuristic. There's no dedicated `messageType` column in the
  * schema, so we approximate "system / join / pin" noise as messages with no
- * authored text content, no embeds, and no attachments. These are dimmed by
- * default and hidden when the System toggle is off.
+ * authored text content, no embeds, no stickers, and no attachments. These
+ * are dimmed by default and hidden when the System toggle is off.
+ *
+ * Stickers live in `stickerLinks` (a JSON array of markdown hyperlinks),
+ * not in `attachments`/`embeds`, so they must be checked explicitly.
+ * `attachmentCount` is the reliable signal that a message had attachments
+ * even when the attachment downloader is disabled (in which case there are
+ * no rows in the attachments table to enrich from).
  */
 function isSystemMessage(m: BrowseMessage): boolean {
   const hasContent = !!m.content?.trim();
   if (hasContent) return false;
   const embeds = parseEmbeds(m.embedsJson);
   if (embeds.length > 0) return false;
+  if (parseStickers(m.stickerLinks).length > 0) return false;
+  if ((m.attachmentCount ?? 0) > 0) return false;
   if (m.attachments && m.attachments.length > 0) return false;
   return true;
 }

@@ -50,6 +50,7 @@ export const messages = sqliteTable('messages', {
   embedsJson: text('embeds_json'),        // JSON
   componentsJson: text('components_json'), // JSON
   flags: integer('flags').default(0),
+  attachmentCount: integer('attachment_count').notNull().default(0),
 }, (table) => ({
   idxMessagesGuildTime: index('idx_messages_guild_time').on(table.guildId, table.createdAt),
   idxMessagesChannelTime: index('idx_messages_channel_time').on(table.channelId, table.createdAt),
