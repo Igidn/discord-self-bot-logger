@@ -5,6 +5,7 @@ import {
   getUserStats,
   getMessagesByUser,
   getAllUsers,
+  getUserActivityHeatmap,
 } from '@/database/queries.js';
 import { logger } from '@/utils/logger.js';
 
@@ -20,6 +21,11 @@ const listQuery = z.object({
 const messagesQuery = z.object({
   limit: z.coerce.number().min(1).max(100).default(50),
   cursor: z.string().optional(),
+});
+
+const heatmapQuery = z.object({
+  days: z.coerce.number().int().min(1).max(730).optional(),
+  tz: z.coerce.number().int().min(-720).max(720).optional(),
 });
 
 router.get('/', async (req, res, next) => {
@@ -56,6 +62,23 @@ router.get('/:id', async (req, res, next) => {
     });
   } catch (err) {
     logger.error(err, 'Failed to fetch user');
+    next(err);
+  }
+});
+
+router.get('/:id/activity/heatmap', async (req, res, next) => {
+  try {
+    const query = heatmapQuery.parse(req.query);
+    const days = query.days ?? 365;
+    const tz = query.tz ?? 0;
+    const data = getUserActivityHeatmap(req.params.id, days, tz);
+    res.json({ days, tz, data });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: err.errors });
+      return;
+    }
+    logger.error(err, 'Failed to fetch user activity heatmap');
     next(err);
   }
 });

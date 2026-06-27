@@ -8,6 +8,7 @@ import {
   Activity,
 } from 'lucide-react';
 import apiClient from '../api/client';
+import { ActivityHeatmap } from '../components/ActivityHeatmap';
 import { MessageCard } from '../components/MessageCard';
 import { formatDate, type TimestampValue } from '../utils/datetime';
 
@@ -174,9 +175,7 @@ export default function UserProfile() {
       )}
 
       {activeTab === 'activity' && (
-        <div className="bg-card border border-border rounded-xl p-4">
-          <div className="text-sm text-muted-foreground">Activity timeline coming soon.</div>
-        </div>
+        <ActivityHeatmap userId={user.id} />
       )}
     </div>
   );
