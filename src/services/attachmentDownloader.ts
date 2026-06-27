@@ -120,6 +120,11 @@ async function _downloadAttachment(
 ): Promise<void> {
   const cfg = getAttachmentConfig();
   if (!cfg.enabled) {
+    // Local downloading is disabled. Still record the attachment as a
+    // metadata-only row pointing at Discord's original URL so the dashboard
+    // can render thumbnails (the /attachments/:id/preview route redirects to
+    // original_url) and so the message isn't mistaken for a system event.
+    recordAttachmentMetadata(attachment, messageId);
     return;
   }
 
@@ -173,6 +178,45 @@ async function _downloadAttachment(
     `);
   } catch (dbErr) {
     logger.error({ attachmentId: attachment.id, error: dbErr }, 'Failed to insert failed-attachment record');
+  }
+}
+
+/** Insert (or upsert) an attachments row carrying only Discord-side
+ *  metadata — no local file. The preview route redirects to original_url,
+ *  so disabled-mode attachments still render in the dashboard. */
+function recordAttachmentMetadata(
+  attachment: Attachment,
+  messageId: string
+): void {
+  try {
+    db.run(sql`
+      INSERT INTO attachments (id, message_id, file_name, original_url, original_size_bytes, content_type, local_path, compressed_size_bytes, width, height, created_at)
+      VALUES (
+        ${attachment.id},
+        ${messageId},
+        ${attachment.name ?? null},
+        ${attachment.url},
+        ${attachment.size ?? null},
+        ${attachment.contentType ?? null},
+        NULL,
+        NULL,
+        ${attachment.width ?? null},
+        ${attachment.height ?? null},
+        ${Math.floor(Date.now() / 1000)}
+      )
+      ON CONFLICT(id) DO UPDATE SET
+        original_url = excluded.original_url,
+        original_size_bytes = excluded.original_size_bytes,
+        content_type = excluded.content_type,
+        width = COALESCE(excluded.width, attachments.width),
+        height = COALESCE(excluded.height, attachments.height)
+    `);
+    logger.debug(
+      { attachmentId: attachment.id, messageId, url: attachment.url },
+      'Recorded attachment metadata (downloading disabled)'
+    );
+  } catch (dbErr) {
+    logger.error({ attachmentId: attachment.id, error: dbErr }, 'Failed to record attachment metadata');
   }
 }
 
