@@ -172,6 +172,32 @@ export function getTopUsers(days: number = 30): { userId: string; username: stri
 }
 
 /* ------------------------------------------------------------------ */
+/*  getUserActivityHeatmap                                             */
+/* ------------------------------------------------------------------ */
+
+export interface ActivityHeatmapDay {
+  day: string;
+  count: number;
+}
+
+export function getUserActivityHeatmap(
+  userId: string,
+  days: number = 365,
+): ActivityHeatmapDay[] {
+  const safeDays = Math.max(1, Math.min(730, days));
+  const sinceSec = Math.floor((Date.now() - safeDays * 24 * 60 * 60 * 1000) / 1000);
+  return db.all<{ day: string; count: number }>(sql`
+    SELECT
+      date(created_at, 'unixepoch', 'localtime') AS day,
+      count(*) AS count
+    FROM messages
+    WHERE author_id = ${userId} AND created_at >= ${sinceSec}
+    GROUP BY day
+    ORDER BY day ASC
+  `);
+}
+
+/* ------------------------------------------------------------------ */
 /*  getGuildsCount / getMessagesCount                                  */
 /* ------------------------------------------------------------------ */
 
