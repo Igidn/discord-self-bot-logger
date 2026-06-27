@@ -24,7 +24,8 @@ const messagesQuery = z.object({
 });
 
 const heatmapQuery = z.object({
-  days: z.coerce.number().min(1).max(730).optional(),
+  days: z.coerce.number().int().min(1).max(730).optional(),
+  tz: z.coerce.number().int().min(-720).max(720).optional(),
 });
 
 router.get('/', async (req, res, next) => {
@@ -69,8 +70,9 @@ router.get('/:id/activity/heatmap', async (req, res, next) => {
   try {
     const query = heatmapQuery.parse(req.query);
     const days = query.days ?? 365;
-    const data = getUserActivityHeatmap(req.params.id, days);
-    res.json({ days, data });
+    const tz = query.tz ?? 0;
+    const data = getUserActivityHeatmap(req.params.id, days, tz);
+    res.json({ days, tz, data });
   } catch (err) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: err.errors });

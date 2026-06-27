@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import apiClient from '../api/client';
-import { parseTimestamp } from '../utils/datetime';
 
 interface HeatmapDay {
   day: string; // YYYY-MM-DD
@@ -9,6 +8,7 @@ interface HeatmapDay {
 
 interface HeatmapResponse {
   days: number;
+  tz: number;
   data: HeatmapDay[];
 }
 
@@ -45,6 +45,8 @@ const LEVEL_RGBA = [
 ];
 const HOLLOW = 'rgba(120,120,120,0.16)';
 
+// All grid date math is done in the viewer's local timezone; the server groups
+// messages using the client's reported UTC offset so the buckets line up.
 function toISODate(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -52,11 +54,21 @@ function toISODate(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+function localMidnight(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function formatDateOnly(iso: string): string {
+  // iso is a local-day 'YYYY-MM-DD' string; avoid Date's UTC interpretation.
+  const [y, m, d] = iso.split('-').map(Number);
+  if (!y || !m || !d) return iso;
+  return new Date(y, m - 1, d).toLocaleDateString();
+}
+
 function buildGrid(days: number, counts: Map<string, number>): Cell[][] {
   // We want columns of weeks (Sun..Sat). End the grid on today's column,
   // starting from the Sunday of the week (today - days + 1).
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = localMidnight(new Date());
 
   const start = new Date(today);
   start.setDate(start.getDate() - (days - 1));
@@ -79,10 +91,7 @@ function buildGrid(days: number, counts: Map<string, number>): Cell[][] {
       });
     }
     cursor.setDate(cursor.getDate() + 7);
-    // Only include the column if any of its days are within the requested window
-    // (drop trailing fully-empty columns beyond today).
     columns.push(column);
-    if (cursor > today && column.every((c) => c.date > today)) break;
   }
   return columns;
 }
@@ -90,10 +99,32 @@ function buildGrid(days: number, counts: Map<string, number>): Cell[][] {
 function computeLevels(counts: number[]): number[] {
   const positive = counts.filter((c) => c > 0);
   if (positive.length === 0) return [0, 0, 0, 0, 0];
-  const sorted = [...positive].sort((a, b) => a - b);
+  // Dedupe so repeated values (e.g. a lurker sending exactly 1 message per
+  // active day) don't collapse all quantiles onto one number, which would
+  // make levels 2-4 unreachable.
+  const sorted = Array.from(new Set(positive)).sort((a, b) => a - b);
+  if (sorted.length === 1) {
+    // Single distinct value: spread the lone value across levels 1-3 and
+    // let anything above (none here) hit level 4.
+    const v = sorted[0];
+    return [0, v, v, v, Infinity];
+  }
+  const min = sorted[0];
+  const max = sorted[sorted.length - 1];
   const pick = (q: number) =>
     sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * q))];
-  return [0, pick(0.25), pick(0.5), pick(0.75), Infinity];
+  let q25 = pick(0.25);
+  let q50 = pick(0.5);
+  let q75 = pick(0.75);
+  // Guard against quantile collisions by nudging to even spacing across
+  // [min, max] when quantiles land on the same value.
+  if (q25 === q50 && q50 === q75) {
+    const span = max - min;
+    q25 = min + span * 0.25;
+    q50 = min + span * 0.5;
+    q75 = min + span * 0.75;
+  }
+  return [0, q25, q50, q75, Infinity];
 }
 
 function levelFor(count: number, levels: number[]): number {
@@ -113,9 +144,13 @@ export function ActivityHeatmap({ userId }: { userId: string }) {
   useEffect(() => {
     setLoading(true);
     let cancelled = false;
+    // Minutes ahead of UTC for the viewer's local timezone. getTimezoneOffset()
+    // returns minutes *behind* UTC (positive for west), so negate it. Sent to
+    // the server so it groups messages into the same local-day buckets we render.
+    const tz = -new Date().getTimezoneOffset();
     apiClient
       .get<HeatmapResponse>(`/users/${userId}/activity/heatmap`, {
-        params: { days: String(days) },
+        params: { days: String(days), tz: String(tz) },
       })
       .then((res) => {
         if (!cancelled) setData(res.data.data);
@@ -283,7 +318,7 @@ export function ActivityHeatmap({ userId }: { userId: string }) {
                     <span className="font-medium text-foreground">
                       {hover.count} messages
                     </span>{' '}
-                    on {parseTimestamp(hover.key)?.toLocaleDateString() ?? hover.key}
+                    on {formatDateOnly(hover.key)}
                   </span>
                 ) : (
                   <span>Hover a day for details</span>

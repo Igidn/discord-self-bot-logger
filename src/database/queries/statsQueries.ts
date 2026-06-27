@@ -183,12 +183,18 @@ export interface ActivityHeatmapDay {
 export function getUserActivityHeatmap(
   userId: string,
   days: number = 365,
+  tzOffsetMinutes: number = 0,
 ): ActivityHeatmapDay[] {
   const safeDays = Math.max(1, Math.min(730, days));
   const sinceSec = Math.floor((Date.now() - safeDays * 24 * 60 * 60 * 1000) / 1000);
+  // Group by the viewer's UTC offset (minutes ahead of UTC) so the day buckets
+  // match the client's local-time grid regardless of the server's timezone.
+  // SQLite accepts a bound modifier string like '+540 minutes' / '-300 minutes'.
+  const safeTz = Math.max(-720, Math.min(720, Math.trunc(tzOffsetMinutes) || 0));
+  const tzModifier = `${safeTz >= 0 ? '+' : '-'}${Math.abs(safeTz)} minutes`;
   return db.all<{ day: string; count: number }>(sql`
     SELECT
-      date(created_at, 'unixepoch', 'localtime') AS day,
+      date(created_at, 'unixepoch', ${tzModifier}) AS day,
       count(*) AS count
     FROM messages
     WHERE author_id = ${userId} AND created_at >= ${sinceSec}
