@@ -387,12 +387,23 @@ export default function BrowseAll() {
 
   /* ---------------- virtualizer ---------------- */
 
+  // Apply the System filter up front so the virtualizer's `count` and
+  // measurement cache always reflect the rows we actually render.
+  const visibleRows = useMemo(
+    () => rows.filter((m) => applied.showSystem || !isSystemMessage(m)),
+    [rows, applied.showSystem]
+  );
+
   // Windowing uses dynamic measurement so long messages expand correctly.
+  // `getItemKey` keys the measurement cache by stable message id, so toggling
+  // the System filter (which reshuffles which item lives at a given index)
+  // doesn't make cached row heights apply to the wrong messages.
   const rowVirtualizer = useVirtualizer({
-    count: rows.length,
+    count: visibleRows.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 96,
     overscan: 8,
+    getItemKey: (index) => visibleRows[index]?.id ?? index,
     measureElement:
       typeof window !== 'undefined' &&
       navigator.userAgent.indexOf('Firefox') === -1
@@ -424,11 +435,6 @@ export default function BrowseAll() {
   }, [loadMore]);
 
   /* ---------------- render ---------------- */
-
-  const visibleRows = useMemo(
-    () => rows.filter((m) => applied.showSystem || !isSystemMessage(m)),
-    [rows, applied.showSystem]
-  );
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
