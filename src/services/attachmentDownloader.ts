@@ -9,7 +9,7 @@ import { URL } from 'node:url';
 import sharp from 'sharp';
 import PQueue from 'p-queue';
 import { db } from '@/database/index.js';
-import { sql } from 'drizzle-orm';
+import { sql, type SQL } from 'drizzle-orm';
 import { logger } from '@/utils/logger.js';
 import { loadConfig } from '@/config/loader.js';
 
@@ -124,7 +124,21 @@ async function _downloadAttachment(
     // metadata-only row pointing at Discord's original URL so the dashboard
     // can render thumbnails (the /attachments/:id/preview route redirects to
     // original_url) and so the message isn't mistaken for a system event.
-    recordAttachmentMetadata(attachment, messageId);
+    try {
+      upsertAttachmentRow(attachment, messageId, {
+        localPath: null,
+        compressedSize: null,
+        width: attachment.width ?? null,
+        height: attachment.height ?? null,
+        conflict: METADATA_COALESCE_CONFLICT,
+      });
+      logger.debug(
+        { attachmentId: attachment.id, messageId, url: attachment.url },
+        'Recorded attachment metadata (downloading disabled)'
+      );
+    } catch (dbErr) {
+      logger.error({ attachmentId: attachment.id, error: dbErr }, 'Failed to record attachment metadata');
+    }
     return;
   }
 
@@ -156,69 +170,57 @@ async function _downloadAttachment(
 
   // Record failure so original URL is preserved for reference
   try {
-    db.run(sql`
-      INSERT INTO attachments (id, message_id, file_name, original_url, original_size_bytes, content_type, local_path, compressed_size_bytes, width, height, created_at)
-      VALUES (
-        ${attachment.id},
-        ${messageId},
-        ${attachment.name ?? null},
-        ${attachment.url},
-        ${attachment.size},
-        ${attachment.contentType},
-        NULL,
-        NULL,
-        ${attachment.width ?? null},
-        ${attachment.height ?? null},
-        ${Math.floor(Date.now() / 1000)}
-      )
-      ON CONFLICT(id) DO UPDATE SET
-        original_url = excluded.original_url,
-        original_size_bytes = excluded.original_size_bytes,
-        content_type = excluded.content_type
-    `);
+    upsertAttachmentRow(attachment, messageId, {
+      localPath: null,
+      compressedSize: null,
+      width: attachment.width ?? null,
+      height: attachment.height ?? null,
+      conflict: METADATA_CONFLICT,
+    });
   } catch (dbErr) {
     logger.error({ attachmentId: attachment.id, error: dbErr }, 'Failed to insert failed-attachment record');
   }
 }
 
-/** Insert (or upsert) an attachments row carrying only Discord-side
- *  metadata — no local file. The preview route redirects to original_url,
- *  so disabled-mode attachments still render in the dashboard. */
-function recordAttachmentMetadata(
+// ON CONFLICT fragments. All three are static SQL (no parameters), so splice
+// them raw into the INSERT via sql.raw.
+const METADATA_CONFLICT = sql.raw(
+  'original_url = excluded.original_url, original_size_bytes = excluded.original_size_bytes, content_type = excluded.content_type'
+);
+const METADATA_COALESCE_CONFLICT = sql.raw(
+  'original_url = excluded.original_url, original_size_bytes = excluded.original_size_bytes, content_type = excluded.content_type, width = COALESCE(excluded.width, attachments.width), height = COALESCE(excluded.height, attachments.height)'
+);
+const LOCAL_FILE_CONFLICT = sql.raw(
+  'original_url = excluded.original_url, local_path = excluded.local_path, compressed_size_bytes = excluded.compressed_size_bytes, width = excluded.width, height = excluded.height'
+);
+
+/** Upsert a single attachments row. The variable part across callers is the
+ *  ON CONFLICT clause (which columns to refresh), passed as a raw SQL
+ *  fragment so the duplicated 11-column INSERT/VALUES list lives once. */
+function upsertAttachmentRow(
   attachment: Attachment,
-  messageId: string
+  messageId: string,
+  opts: { localPath: string | null; compressedSize: number | null; width: number | null; height: number | null; conflict: SQL }
 ): void {
-  try {
-    db.run(sql`
-      INSERT INTO attachments (id, message_id, file_name, original_url, original_size_bytes, content_type, local_path, compressed_size_bytes, width, height, created_at)
-      VALUES (
-        ${attachment.id},
-        ${messageId},
-        ${attachment.name ?? null},
-        ${attachment.url},
-        ${attachment.size ?? null},
-        ${attachment.contentType ?? null},
-        NULL,
-        NULL,
-        ${attachment.width ?? null},
-        ${attachment.height ?? null},
-        ${Math.floor(Date.now() / 1000)}
-      )
-      ON CONFLICT(id) DO UPDATE SET
-        original_url = excluded.original_url,
-        original_size_bytes = excluded.original_size_bytes,
-        content_type = excluded.content_type,
-        width = COALESCE(excluded.width, attachments.width),
-        height = COALESCE(excluded.height, attachments.height)
-    `);
-    logger.debug(
-      { attachmentId: attachment.id, messageId, url: attachment.url },
-      'Recorded attachment metadata (downloading disabled)'
-    );
-  } catch (dbErr) {
-    logger.error({ attachmentId: attachment.id, error: dbErr }, 'Failed to record attachment metadata');
-  }
+  db.run(sql`
+    INSERT INTO attachments (id, message_id, file_name, original_url, original_size_bytes, content_type, local_path, compressed_size_bytes, width, height, created_at)
+    VALUES (
+      ${attachment.id},
+      ${messageId},
+      ${attachment.name ?? null},
+      ${attachment.url},
+      ${attachment.size ?? null},
+      ${attachment.contentType ?? null},
+      ${opts.localPath ?? null},
+      ${opts.compressedSize ?? null},
+      ${opts.width},
+      ${opts.height},
+      ${Math.floor(Date.now() / 1000)}
+    )
+    ON CONFLICT(id) DO UPDATE SET ${opts.conflict}
+  `);
 }
+
 
 async function attemptDownload(
   attachment: Attachment,
@@ -300,28 +302,13 @@ async function attemptDownload(
   }
 
   // f. Insert into attachments table with metadata
-  db.run(sql`
-    INSERT INTO attachments (id, message_id, file_name, original_url, original_size_bytes, content_type, local_path, compressed_size_bytes, width, height, created_at)
-    VALUES (
-      ${attachment.id},
-      ${messageId},
-      ${attachment.name ?? null},
-      ${attachment.url},
-      ${attachment.size},
-      ${attachment.contentType},
-      ${finalPath},
-      ${compressedSize},
-      ${meta?.width ?? attachment.width ?? null},
-      ${meta?.height ?? attachment.height ?? null},
-      ${Math.floor(Date.now() / 1000)}
-    )
-    ON CONFLICT(id) DO UPDATE SET
-      original_url = excluded.original_url,
-      local_path = excluded.local_path,
-      compressed_size_bytes = excluded.compressed_size_bytes,
-      width = excluded.width,
-      height = excluded.height
-  `);
+  upsertAttachmentRow(attachment, messageId, {
+    localPath: finalPath,
+    compressedSize,
+    width: meta?.width ?? attachment.width ?? null,
+    height: meta?.height ?? attachment.height ?? null,
+    conflict: LOCAL_FILE_CONFLICT,
+  });
 
   logger.info(
     { attachmentId: attachment.id, messageId, finalPath, compressedSize },

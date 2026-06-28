@@ -32,6 +32,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import apiClient from '../api/client';
+import { formatRelativeTime } from '../utils/datetime';
 import { useSocketContext } from '../socket/context';
 
 interface HealthStats {
@@ -497,24 +498,6 @@ function formatShortDate(value: string) {
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-function formatRelativeTime(ts: string | number): string {
-  const timestamp =
-    typeof ts === 'string'
-      ? new Date(ts).getTime()
-      : ts < 1e12
-        ? ts * 1000
-        : ts;
-
-  if (Number.isNaN(timestamp)) return 'unknown';
-
-  const diff = Date.now() - timestamp;
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
-}
 
 function formatNumber(value: number) {
   return value.toLocaleString();

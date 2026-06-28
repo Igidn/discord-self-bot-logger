@@ -44,3 +44,22 @@ export function formatDateAndTime(value: TimestampValue): string {
   const date = parseTimestamp(value);
   return date ? `${date.toLocaleDateString()} ${date.toLocaleTimeString()}` : '-';
 }
+
+/** Relative time like "3m ago" / "in 5h". Stable across past and future. */
+export function formatRelativeTime(value: TimestampValue): string {
+  const date = parseTimestamp(value);
+  if (!date) return 'unknown';
+  const diff = Date.now() - date.getTime();
+  const abs = Math.abs(diff);
+  if (abs < 60_000) return 'just now';
+  const mins = Math.floor(abs / 60_000);
+  if (mins < 60) return diff >= 0 ? `${mins}m ago` : `in ${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return diff >= 0 ? `${hrs}h ago` : `in ${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return diff >= 0 ? `${days}d ago` : `in ${days}d`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return diff >= 0 ? `${months}mo ago` : `in ${months}mo`;
+  const years = Math.floor(days / 365);
+  return diff >= 0 ? `${years}y ago` : `in ${years}y`;
+}

@@ -62,9 +62,7 @@ router.get('/browse', async (req, res, next) => {
       requireFilter: false,
     });
 
-    const withChannels = attachChannels(data);
-    const enriched = attachAttachments(withChannels);
-    res.json({ data: enriched, nextCursor });
+    res.json({ data: attachAttachments(attachChannels(data)), nextCursor });
   } catch (err) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: err.errors });

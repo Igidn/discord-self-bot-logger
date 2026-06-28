@@ -32,7 +32,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
-import { parseTimestamp, type TimestampValue } from '../utils/datetime';
+import { formatDateTime, formatRelativeTime, type TimestampValue } from '../utils/datetime';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -158,7 +158,7 @@ export default function BrowseAll() {
   const [loading, setLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeFilterCount, setActiveFilterCount] = useState(0);
+
   const [filtersOpenMobile, setFiltersOpenMobile] = useState(false);
 
   const parentRef = useRef<HTMLDivElement>(null);
@@ -169,6 +169,17 @@ export default function BrowseAll() {
 
   const hasMore = nextCursor !== null;
 
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (applied.guildId) count++;
+    if (applied.channelId) count++;
+    if (applied.authorId) count++;
+    if (applied.from) count++;
+    if (applied.to) count++;
+    if (applied.search.trim()) count++;
+    if (applied.sort === 'oldest') count++;
+    return count;
+  }, [applied]);
   /* ---------------- guild + channel lists ---------------- */
 
   useEffect(() => {
@@ -229,19 +240,6 @@ export default function BrowseAll() {
     };
   }, [userQuery, applied.guildId]);
 
-  /* ---------------- active filter count ---------------- */
-
-  useEffect(() => {
-    let count = 0;
-    if (applied.guildId) count++;
-    if (applied.channelId) count++;
-    if (applied.authorId) count++;
-    if (applied.from) count++;
-    if (applied.to) count++;
-    if (applied.search.trim()) count++;
-    if (applied.sort === 'oldest') count++;
-    setActiveFilterCount(count);
-  }, [applied]);
 
   /* ---------------- fetch ---------------- */
 
@@ -277,7 +275,7 @@ export default function BrowseAll() {
         if (id !== fetchIdRef.current) return; // superseded
         const incoming = res.data.data ?? [];
         if (append) {
-          setRows((prev) => dedupe([...prev, ...incoming]));
+          setRows((prev) => [...prev, ...incoming]); // ponytail: no dedupe — cursor pagination never overlaps pages; re-add if backend changes
         } else {
           setRows(incoming);
         }
@@ -389,10 +387,14 @@ export default function BrowseAll() {
 
   /* ---------------- virtualizer ---------------- */
 
-  // Apply the System filter up front so the virtualizer's `count` and
-  // measurement cache always reflect the rows we actually render.
+  // Pre-filter system messages and cache the isSystem flag once per row,
+  // so the virtualizer's `count` / measurement cache reflect only the rows
+  // we render, and the render pass doesn't re-parse embed/sticker JSON.
   const visibleRows = useMemo(
-    () => rows.filter((m) => applied.showSystem || !isSystemMessage(m)),
+    () =>
+      rows
+        .map((m) => ({ message: m, isSystem: isSystemMessage(m) }))
+        .filter(({ isSystem }) => applied.showSystem || !isSystem),
     [rows, applied.showSystem]
   );
 
@@ -405,7 +407,7 @@ export default function BrowseAll() {
     getScrollElement: () => parentRef.current,
     estimateSize: () => 96,
     overscan: 8,
-    getItemKey: (index) => visibleRows[index]?.id ?? index,
+    getItemKey: (index) => visibleRows[index]?.message.id ?? index,
     measureElement:
       typeof window !== 'undefined' &&
       navigator.userAgent.indexOf('Firefox') === -1
@@ -511,9 +513,9 @@ export default function BrowseAll() {
             />
           ) : (
             rowVirtualizer.getVirtualItems().map((virtualRow) => {
-              const message = visibleRows[virtualRow.index];
-              if (!message) return null;
-              const isSystem = isSystemMessage(message);
+              const entry = visibleRows[virtualRow.index];
+              if (!entry) return null;
+              const { message, isSystem } = entry;
               return (
                 <div
                   key={message.id}
@@ -592,9 +594,10 @@ function FiltersBar(props: FiltersBarProps) {
   const controls = (
     <>
       <Field label="Guild" icon={<SlidersHorizontal className="size-3.5" />}>
-        <NativeSelect
+        <select
           value={props.draftGuildId}
           onChange={(e) => props.onGuildChange(e.target.value)}
+          className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <option value="">All guilds</option>
           {props.guilds.map((g) => (
@@ -602,14 +605,15 @@ function FiltersBar(props: FiltersBarProps) {
               {g.name}
             </option>
           ))}
-        </NativeSelect>
+        </select>
       </Field>
 
       <Field label="Channel" icon={<Hash className="size-3.5" />}>
-        <NativeSelect
+        <select
           value={props.draftChannelId}
           onChange={(e) => props.onChannelChange(e.target.value)}
           disabled={!props.draftGuildId}
+          className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <option value="">{props.draftGuildId ? 'All channels' : 'Select a guild first'}</option>
           {props.channels.map((c) => (
@@ -617,7 +621,7 @@ function FiltersBar(props: FiltersBarProps) {
               {c.name ?? c.id}
             </option>
           ))}
-        </NativeSelect>
+        </select>
       </Field>
 
       <Field label="User" icon={<UserIcon className="size-3.5" />} className="relative">
@@ -771,29 +775,6 @@ function Field({
       </span>
       {children}
     </div>
-  );
-}
-
-function NativeSelect({
-  value,
-  onChange,
-  disabled,
-  children,
-}: {
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
-  disabled?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <select
-      value={value}
-      onChange={onChange}
-      disabled={disabled}
-      className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-    >
-      {children}
-    </select>
   );
 }
 
@@ -1030,16 +1011,6 @@ function BrowseSkeleton() {
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
-function dedupe(messages: BrowseMessage[]): BrowseMessage[] {
-  const seen = new Set<string>();
-  const out: BrowseMessage[] = [];
-  for (const m of messages) {
-    if (seen.has(m.id)) continue;
-    seen.add(m.id);
-    out.push(m);
-  }
-  return out;
-}
 
 interface ParsedEmbed {
   image?: { url?: string };
@@ -1144,27 +1115,4 @@ function isSystemMessage(m: BrowseMessage): boolean {
   if ((m.attachmentCount ?? 0) > 0) return false;
   if (m.attachments && m.attachments.length > 0) return false;
   return true;
-}
-
-function formatRelativeTime(ts: TimestampValue): string {
-  const date = parseTimestamp(ts);
-  if (!date) return 'unknown';
-  const diff = Date.now() - date.getTime();
-  const abs = Math.abs(diff);
-  if (abs < 60_000) return 'just now';
-  const mins = Math.floor(abs / 60_000);
-  if (mins < 60) return diff >= 0 ? `${mins}m ago` : `in ${mins}m`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return diff >= 0 ? `${hrs}h ago` : `in ${hrs}h`;
-  const days = Math.floor(hrs / 24);
-  if (days < 7) return diff >= 0 ? `${days}d ago` : `in ${days}d`;
-  const months = Math.floor(days / 30);
-  if (months < 12) return diff >= 0 ? `${months}mo ago` : `in ${months}mo`;
-  const years = Math.floor(days / 365);
-  return diff >= 0 ? `${years}y ago` : `in ${years}y`;
-}
-
-function formatDateTime(ts: TimestampValue): string {
-  const date = parseTimestamp(ts);
-  return date ? date.toLocaleString() : '-';
 }
