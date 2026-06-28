@@ -3,9 +3,6 @@ import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { createWriteStream } from 'node:fs';
 import type { Readable } from 'node:stream';
-import http from 'node:http';
-import https from 'node:https';
-import { URL } from 'node:url';
 import sharp from 'sharp';
 import PQueue from 'p-queue';
 import { db } from '@/database/index.js';
@@ -13,62 +10,34 @@ import { sql, type SQL } from 'drizzle-orm';
 import { logger } from '@/utils/logger.js';
 import { loadConfig } from '@/config/loader.js';
 
-function request(
-  urlStr: string,
-  options: http.RequestOptions,
-  maxRedirects: number
-): Promise<{ response: http.IncomingMessage; url: string }> {
-  return new Promise((resolve, reject) => {
-    const url = new URL(urlStr);
-    const client = url.protocol === 'https:' ? https : http;
-    const req = client.request(url, options, (res) => {
-      if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        if (maxRedirects <= 0) {
-          res.resume();
-          reject(new Error('Too many redirects'));
-          return;
-        }
-        const redirectUrl = new URL(res.headers.location, url).toString();
-        res.resume();
-        resolve(request(redirectUrl, options, maxRedirects - 1));
-        return;
-      }
-      resolve({ response: res, url: urlStr });
-    });
-    req.on('error', reject);
-    req.on('timeout', () => {
-      req.destroy();
-      reject(new Error('Request timeout'));
-    });
-    if (options.timeout) {
-      req.setTimeout(options.timeout);
-    }
-    req.end();
-  });
-}
-
+// ponytail: fetch (Node 20+) handles redirects natively; AbortSignal.timeout
+// replaces the manual timeout/redirect plumbing the old http/https client did.
 async function httpHead(
   url: string,
-  options: { timeout?: number; maxRedirects?: number; headers?: http.OutgoingHttpHeaders } = {}
-): Promise<{ headers: http.IncomingHttpHeaders }> {
-  const { response } = await request(url, { method: 'HEAD', headers: options.headers, timeout: options.timeout }, options.maxRedirects ?? 5);
-  if (!response.statusCode || response.statusCode < 200 || response.statusCode >= 300) {
-    response.resume();
-    throw new Error(`HEAD request failed with status ${response.statusCode ?? 'unknown'}`);
-  }
-  return { headers: response.headers };
+  options: { timeout?: number; headers?: Record<string, string> } = {}
+): Promise<{ headers: Record<string, string> }> {
+  const res = await fetch(url, {
+    method: 'HEAD',
+    headers: options.headers,
+    signal: options.timeout ? AbortSignal.timeout(options.timeout) : undefined,
+  });
+  if (!res.ok) throw new Error(`HEAD request failed with status ${res.status}`);
+  return { headers: Object.fromEntries(res.headers) };
 }
 
 async function httpGetStream(
   url: string,
-  options: { timeout?: number; maxRedirects?: number; headers?: http.OutgoingHttpHeaders } = {}
+  options: { timeout?: number; headers?: Record<string, string> } = {}
 ): Promise<{ data: Readable }> {
-  const { response } = await request(url, { method: 'GET', headers: options.headers, timeout: options.timeout }, options.maxRedirects ?? 5);
-  if (!response.statusCode || response.statusCode < 200 || response.statusCode >= 300) {
-    response.resume();
-    throw new Error(`GET request failed with status ${response.statusCode ?? 'unknown'}`);
-  }
-  return { data: response as Readable };
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: options.headers,
+    signal: options.timeout ? AbortSignal.timeout(options.timeout) : undefined,
+  });
+  if (!res.ok) throw new Error(`GET request failed with status ${res.status}`);
+  // ponytail: AbortSignal timeout only covers headers; body read timeout is
+  // governed by the downstream pipeline backpressure.
+  return { data: res.body as unknown as Readable };
 }
 
 export interface Attachment {
@@ -232,7 +201,7 @@ async function attemptDownload(
   const url = attachment.proxyURL || attachment.url;
 
   // b. HEAD request to check content-length
-  const headResp = await httpHead(url, { timeout: 15000, maxRedirects: 5 });
+  const headResp = await httpHead(url, { timeout: 15000 });
   const contentLength = headResp.headers['content-length'];
   const maxBytes = cfg.maxSizeMb * 1024 * 1024;
   if (contentLength && parseInt(String(contentLength), 10) > maxBytes) {
@@ -250,7 +219,6 @@ async function attemptDownload(
 
   const response = await httpGetStream(url, {
     timeout: 60000,
-    maxRedirects: 5,
     headers: { Accept: attachment.contentType ?? 'image/*' },
   });
 

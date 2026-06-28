@@ -112,25 +112,3 @@ export function getGuildAudit(
   if (conditions.length > 0) query = query.where(and(...conditions));
   return query.orderBy(desc(schema.guildAudit.createdAt)).limit(limit).all();
 }
-
-/* ------------------------------------------------------------------ */
-/*  getActivityEvents                                                  */
-/* ------------------------------------------------------------------ */
-
-export function getActivityEvents(
-  type: 'member' | 'voice' | 'presence' | 'audit',
-  guildId?: string,
-  userId?: string,
-  limit: number = 50
-) {
-  switch (type) {
-    case 'member':
-      return getMemberEvents(guildId, userId, undefined, limit);
-    case 'voice':
-      return getVoiceEvents(guildId, userId, limit);
-    case 'presence':
-      return getPresenceUpdates(guildId, userId, limit);
-    case 'audit':
-      return getGuildAudit(guildId, undefined, userId, limit);
-  }
-}

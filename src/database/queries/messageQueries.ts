@@ -2,7 +2,7 @@ import { eq, and, or, lt, gt, desc, asc } from 'drizzle-orm';
 import { db } from '../index.js';
 import * as schema from '../schema.js';
 import { buildMessageConditions, attachAuthors, paginateMessages } from './helpers.js';
-import type { MessageFilters, Pagination, PaginatedMessages, MessageDetail } from './types.js';
+import type { MessageFilters, Pagination, PaginatedMessages } from './types.js';
 
 /* ------------------------------------------------------------------ */
 /*  getMessages                                                        */
@@ -40,37 +40,6 @@ export function getMessages(
 
   const { data, nextCursor } = paginateMessages(rows, limit);
   return { data: attachAuthors(data), nextCursor };
-}
-
-/* ------------------------------------------------------------------ */
-/*  getMessageById                                                     */
-/* ------------------------------------------------------------------ */
-
-export function getMessageById(id: string): MessageDetail | null {
-  const message = db.select().from(schema.messages).where(eq(schema.messages.id, id)).get();
-  if (!message) return null;
-
-  const edits = db
-    .select()
-    .from(schema.messageEdits)
-    .where(eq(schema.messageEdits.messageId, id))
-    .orderBy(desc(schema.messageEdits.editedAt))
-    .all();
-
-  const attachments = db
-    .select()
-    .from(schema.attachments)
-    .where(eq(schema.attachments.messageId, id))
-    .all();
-
-  const reactions = db
-    .select()
-    .from(schema.reactions)
-    .where(eq(schema.reactions.messageId, id))
-    .orderBy(desc(schema.reactions.createdAt))
-    .all();
-
-  return { message, edits, attachments, reactions };
 }
 
 /* ------------------------------------------------------------------ */
