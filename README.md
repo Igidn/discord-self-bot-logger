@@ -132,27 +132,6 @@ database:
 ```
 
 > **Security Note:** Keep your `config.yaml` secure and never commit it. The bot requires a user token, which grants full account access.
-
----
-
-## Project Structure
-
-```
-.
-├── src/
-│   ├── bot/               # Discord self-bot client & event handlers
-│   ├── config/            # YAML config loader & Zod schema
-│   ├── dashboard/         # Express API, Socket.IO, routes
-│   ├── database/          # Drizzle schema, queries, migrations
-│   ├── services/          # Retention purger, attachment downloader, exporter
-│   └── utils/             # Logger, paths, snowflake utilities
-├── dashboard-ui/          # React SPA (Vite + Tailwind + shadcn/ui)
-├── scripts/               # Dev & build shell scripts
-├── storage/               # SQLite DB & downloaded attachments
-├── config.example.yaml    # Example configuration
-└── package.json
-```
-
 ---
 
 ## Available Scripts
@@ -166,43 +145,3 @@ database:
 | `npm run db:generate` | Generate new migration files from schema changes |
 
 ---
-
-## Database Schema
-
-The SQLite database uses Drizzle ORM and includes tables for:
-
-- `guilds`, `channels`, `users`
-- `messages` (with FTS5 search index)
-- `message_edits`, `message_deletes`
-- `reactions`, `attachments`
-- `member_events`, `presence_updates`, `voice_events`, `guild_audit`
-
-Migrations are located in `src/database/migrations/`.
-
----
-
-## Dashboard Pages
-
-| Page | Description |
-|------|-------------|
-| **Overview** | Recent activity, stats, and live feed |
-| **Search** | Full-text message search with filters |
-| **Guilds** | Browse monitored servers |
-| **Channel Feed** | Real-time message stream per channel |
-| **Message Detail** | View message with edits, reactions, attachments |
-| **User Profile** | User activity and message history |
-| **Stats** | Analytics and charts |
-| **Settings** | Dashboard configuration |
-| **Setup** | First-time guild selection wizard |
-
----
-
-## Disclaimer
-
-This software is provided for **educational and personal archival purposes only**. Using self-bots is against [Discord's Terms of Service](https://discord.com/terms). The authors assume no liability for any account bans, data loss, or other consequences resulting from the use of this tool.
-
----
-
-## License
-
-MIT
