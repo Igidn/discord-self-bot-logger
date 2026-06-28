@@ -49,6 +49,7 @@ interface RecentMessage {
   authorId: string;
   content?: string | null;
   createdAt: string | number;
+  isDm?: boolean;
   author?: {
     id: string;
     username: string;
@@ -380,8 +381,15 @@ function MessageRow({ message }: { message: RecentMessage }) {
   const time = formatRelativeTime(message.createdAt);
   const channelName = message.channel?.name ?? null;
   const guildName = message.guild?.name ?? null;
-  const channelLabel = `#${channelName ?? message.channelId.slice(-6)}`;
-  const locationLabel = guildName ? `${guildName} ${channelLabel}` : channelLabel;
+  // ponytail: for historical DMs with no stored channel row, falls back to the
+  // message author's username — correct for incoming DMs (author == recipient),
+  // but shows the self-bot's own name for historical outgoing DMs. New DMs store
+  // the recipient username as the channel name, so this only affects old rows.
+  const locationLabel = message.isDm
+    ? `${channelName ?? message.author?.username ?? message.channelId.slice(-6)} | DM`
+    : guildName
+      ? `${guildName} #${channelName ?? message.channelId.slice(-6)}`
+      : `#${channelName ?? message.channelId.slice(-6)}`;
 
   return (
     <Link

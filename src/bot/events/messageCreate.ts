@@ -47,18 +47,47 @@ async function onMessageCreate(client: Client, _db: DrizzleDb, message: Message)
         }
       }
 
-      // Upsert channel cache
-      if (message.channel && message.guildId) {
+      // Upsert channel cache. DM channels have no Discord-side name, so store
+      // the recipient's username as the channel name (matches how Discord UI
+      // labels a DM) and upsert the recipient user for future hydration.
+      // ponytail: group DMs (no single recipient) get a null name; rare for
+      // self-bots, fall back to author username in the UI if it ever happens.
+      let channelName: string | null = null;
+      if (message.channel) {
         const ch = message.channel as any;
-        enrichChannel({
-          id: ch.id,
-          name: ch.name,
-          type: ch.type,
-          guildId: message.guildId,
-          topic: ch.topic,
-          nsfw: ch.nsfw,
-          parentId: ch.parentId,
-        });
+        if (isDm) {
+          const recipient = ch.recipient;
+          if (recipient) {
+            channelName = recipient.username ?? null;
+            enrichUser({
+              id: recipient.id,
+              username: recipient.username,
+              discriminator: recipient.discriminator,
+              avatarURL: recipient.avatarURL?.bind(recipient) as any,
+              bot: recipient.bot ?? false,
+            });
+          }
+          enrichChannel({
+            id: ch.id,
+            name: channelName,
+            type: 1, // Discord DM channel type
+            guildId: null,
+            topic: null,
+            nsfw: false,
+            parentId: null,
+          });
+        } else {
+          channelName = ch.name ?? null;
+          enrichChannel({
+            id: ch.id,
+            name: ch.name,
+            type: ch.type,
+            guildId: message.guildId!,
+            topic: ch.topic,
+            nsfw: ch.nsfw,
+            parentId: ch.parentId,
+          });
+        }
       }
 
       // Build sticker markdown hyperlinks
@@ -150,8 +179,8 @@ async function onMessageCreate(client: Client, _db: DrizzleDb, message: Message)
         channel: message.channel
           ? {
               id: message.channel.id,
-              name: (message.channel as any).name ?? null,
-              type: (message.channel as any).type ?? null,
+              name: channelName,
+              type: isDm ? 1 : ((message.channel as any).type ?? null),
             }
           : null,
         guild: message.guild
