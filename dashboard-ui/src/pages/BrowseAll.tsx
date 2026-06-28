@@ -250,8 +250,18 @@ export default function BrowseAll() {
       if (filters.guildId) params.set('guildId', filters.guildId);
       if (filters.channelId) params.set('channelId', filters.channelId);
       if (filters.authorId) params.set('authorId', filters.authorId);
-      if (filters.from) params.set('from', filters.from);
-      if (filters.to) params.set('to', filters.to);
+      // datetime-local values are timezone-naive (browser wall-clock). Convert
+      // to an absolute ISO string here so the backend parses them as UTC
+      // regardless of the server's local TZ — otherwise a UTC server + non-UTC
+      // browser shifts the From/To window and the filter silently matches nothing.
+      if (filters.from) {
+        const d = new Date(filters.from);
+        if (!Number.isNaN(d.getTime())) params.set('from', d.toISOString());
+      }
+      if (filters.to) {
+        const d = new Date(filters.to);
+        if (!Number.isNaN(d.getTime())) params.set('to', d.toISOString());
+      }
       if (filters.sort) params.set('sort', filters.sort);
       params.set('limit', String(PAGE_SIZE));
       if (cursor) params.set('cursor', cursor);
