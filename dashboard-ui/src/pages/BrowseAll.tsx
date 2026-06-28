@@ -100,8 +100,8 @@ interface AppliedFilters {
   channelId: string;
   authorId: string; // snowflake (selected from autocomplete)
   authorLabel: string; // display label for the selected user
-  from: string; // datetime-local string
-  to: string;
+  from: string; // YYYY-MM-DD date string
+  to: string; // YYYY-MM-DD date string
   search: string;
   sort: SortMode;
   showSystem: boolean;
@@ -250,8 +250,19 @@ export default function BrowseAll() {
       if (filters.guildId) params.set('guildId', filters.guildId);
       if (filters.channelId) params.set('channelId', filters.channelId);
       if (filters.authorId) params.set('authorId', filters.authorId);
-      if (filters.from) params.set('from', filters.from);
-      if (filters.to) params.set('to', filters.to);
+      // Date inputs yield YYYY-MM-DD (timezone-naive). Treat From as the
+      // start of that day and To as the END of that day (23:59:59.999) so
+      // picking "To = today" includes all of today's messages instead of only
+      // its first second. Convert to an absolute ISO string in the browser so
+      // the backend parses it as UTC regardless of the server's local TZ.
+      if (filters.from) {
+        const d = new Date(filters.from + 'T00:00:00');
+        if (!Number.isNaN(d.getTime())) params.set('from', d.toISOString());
+      }
+      if (filters.to) {
+        const d = new Date(filters.to + 'T23:59:59.999');
+        if (!Number.isNaN(d.getTime())) params.set('to', d.toISOString());
+      }
       if (filters.sort) params.set('sort', filters.sort);
       params.set('limit', String(PAGE_SIZE));
       if (cursor) params.set('cursor', cursor);
@@ -653,7 +664,7 @@ function FiltersBar(props: FiltersBarProps) {
 
       <Field label="From" icon={<Calendar className="size-3.5" />}>
         <Input
-          type="datetime-local"
+          type="date"
           value={props.draftFrom}
           onChange={(e) => props.onFromChange(e.target.value)}
           className="h-9"
@@ -662,7 +673,7 @@ function FiltersBar(props: FiltersBarProps) {
 
       <Field label="To" icon={<Calendar className="size-3.5" />}>
         <Input
-          type="datetime-local"
+          type="date"
           value={props.draftTo}
           onChange={(e) => props.onToChange(e.target.value)}
           className="h-9"
