@@ -25,6 +25,12 @@ export interface ChannelRef {
   type: number | null;
 }
 
+export interface GuildRef {
+  id: string;
+  name: string | null;
+  iconUrl: string | null;
+}
+
 export function attachChannels<T extends { channelId: string }>(
   messages: T[]
 ): (T & { channel: ChannelRef | null })[] {
@@ -50,6 +56,37 @@ export function attachChannels<T extends { channelId: string }>(
     ...m,
     channel: map.get(m.channelId) ?? null,
   })) as (T & { channel: ChannelRef | null })[];
+}
+
+/* ------------------------------------------------------------------ */
+/*  Guild hydration (batched)                                          */
+/* ------------------------------------------------------------------ */
+
+export function attachGuilds<T extends { guildId?: string | null }>(
+  messages: T[]
+): (T & { guild: GuildRef | null })[] {
+  if (messages.length === 0) return messages as (T & { guild: GuildRef | null })[];
+
+  const guildIds = [...new Set(messages.map((m) => m.guildId).filter((id): id is string => Boolean(id)))];
+  if (guildIds.length === 0) {
+    return messages.map((m) => ({ ...m, guild: null })) as (T & { guild: GuildRef | null })[];
+  }
+
+  const rows = db
+    .select({
+      id: schema.guilds.id,
+      name: schema.guilds.name,
+      iconUrl: schema.guilds.iconUrl,
+    })
+    .from(schema.guilds)
+    .where(inArray(schema.guilds.id, guildIds))
+    .all();
+
+  const map = new Map(rows.map((g) => [g.id, g]));
+  return messages.map((m) => ({
+    ...m,
+    guild: m.guildId ? (map.get(m.guildId) ?? null) : null,
+  })) as (T & { guild: GuildRef | null })[];
 }
 
 /* ------------------------------------------------------------------ */

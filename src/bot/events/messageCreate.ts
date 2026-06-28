@@ -147,6 +147,20 @@ async function onMessageCreate(client: Client, _db: DrizzleDb, message: Message)
               avatarUrl: message.author.avatarURL({ size: 128 }),
             }
           : null,
+        channel: message.channel
+          ? {
+              id: message.channel.id,
+              name: (message.channel as any).name ?? null,
+              type: (message.channel as any).type ?? null,
+            }
+          : null,
+        guild: message.guild
+          ? {
+              id: message.guild.id,
+              name: message.guild.name,
+              iconUrl: message.guild.iconURL({ size: 128 }) ?? null,
+            }
+          : null,
       };
 
       emitMessageNew(payload);

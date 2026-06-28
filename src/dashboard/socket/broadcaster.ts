@@ -23,6 +23,16 @@ interface MessagePayload {
     username: string;
     avatarUrl?: string | null;
   } | null;
+  channel?: {
+    id: string;
+    name: string | null;
+    type: number | null;
+  } | null;
+  guild?: {
+    id: string;
+    name: string | null;
+    iconUrl?: string | null;
+  } | null;
 }
 
 function tokenizeSearchQuery(q: string): string[] {

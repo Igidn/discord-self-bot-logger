@@ -54,6 +54,16 @@ interface RecentMessage {
     username: string;
     avatarUrl?: string | null;
   } | null;
+  channel?: {
+    id: string;
+    name: string | null;
+    type: number | null;
+  } | null;
+  guild?: {
+    id: string;
+    name: string | null;
+    iconUrl?: string | null;
+  } | null;
 }
 
 interface DailyCount {
@@ -368,6 +378,10 @@ function MessageRow({ message }: { message: RecentMessage }) {
   const initials = username.slice(0, 2).toUpperCase();
   const content = message.content?.trim() || '(no text content)';
   const time = formatRelativeTime(message.createdAt);
+  const channelName = message.channel?.name ?? null;
+  const guildName = message.guild?.name ?? null;
+  const channelLabel = `#${channelName ?? message.channelId.slice(-6)}`;
+  const locationLabel = guildName ? `${guildName} ${channelLabel}` : channelLabel;
 
   return (
     <Link
@@ -382,8 +396,8 @@ function MessageRow({ message }: { message: RecentMessage }) {
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium truncate">{username}</span>
           {message.channelId && (
-            <Badge variant="secondary" className="text-xs shrink-0">
-              #{message.channelId.slice(-4)}
+            <Badge variant="secondary" className="text-xs shrink-0 max-w-[240px] truncate">
+              {locationLabel}
             </Badge>
           )}
         </div>
