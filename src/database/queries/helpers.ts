@@ -16,6 +16,92 @@ import * as schema from '../schema.js';
 import type { MessageFilters, MessageWithAuthor } from './types.js';
 
 /* ------------------------------------------------------------------ */
+/*  Channel hydration                                                  */
+/* ------------------------------------------------------------------ */
+
+export interface ChannelRef {
+  id: string;
+  name: string | null;
+  type: number | null;
+}
+
+export function attachChannels<T extends { channelId: string }>(
+  messages: T[]
+): (T & { channel: ChannelRef | null })[] {
+  if (messages.length === 0) return messages as (T & { channel: ChannelRef | null })[];
+
+  const channelIds = [...new Set(messages.map((m) => m.channelId))].filter(Boolean);
+  if (channelIds.length === 0) {
+    return messages.map((m) => ({ ...m, channel: null })) as (T & { channel: ChannelRef | null })[];
+  }
+
+  const rows = db
+    .select({
+      id: schema.channels.id,
+      name: schema.channels.name,
+      type: schema.channels.type,
+    })
+    .from(schema.channels)
+    .where(inArray(schema.channels.id, channelIds))
+    .all();
+
+  const map = new Map(rows.map((c) => [c.id, c]));
+  return messages.map((m) => ({
+    ...m,
+    channel: map.get(m.channelId) ?? null,
+  })) as (T & { channel: ChannelRef | null })[];
+}
+
+/* ------------------------------------------------------------------ */
+/*  Attachment thumbnail hydration (batched)                           */
+/* ------------------------------------------------------------------ */
+
+export interface AttachmentThumb {
+  id: string;
+  fileName: string | null;
+  contentType: string | null;
+  width: number | null;
+  height: number | null;
+}
+
+export function attachAttachments<T extends { id: string }>(
+  messages: T[]
+): (T & { attachments: AttachmentThumb[] })[] {
+  if (messages.length === 0) return messages as (T & { attachments: AttachmentThumb[] })[];
+
+  const messageIds = messages.map((m) => m.id);
+  const rows = db
+    .select({
+      messageId: schema.attachments.messageId,
+      id: schema.attachments.id,
+      fileName: schema.attachments.fileName,
+      contentType: schema.attachments.contentType,
+      width: schema.attachments.width,
+      height: schema.attachments.height,
+    })
+    .from(schema.attachments)
+    .where(inArray(schema.attachments.messageId, messageIds))
+    .all();
+
+  const map = new Map<string, AttachmentThumb[]>();
+  for (const row of rows) {
+    const list = map.get(row.messageId) ?? [];
+    list.push({
+      id: row.id,
+      fileName: row.fileName,
+      contentType: row.contentType,
+      width: row.width,
+      height: row.height,
+    });
+    map.set(row.messageId, list);
+  }
+  return messages.map((m) => ({
+    ...m,
+    attachments: map.get(m.id) ?? [],
+  })) as (T & { attachments: AttachmentThumb[] })[];
+}
+
+/* ------------------------------------------------------------------ */
 /*  Like helpers                                                       */
 /* ------------------------------------------------------------------ */
 

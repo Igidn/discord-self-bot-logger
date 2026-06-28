@@ -23,6 +23,9 @@ cd ..
 echo "Building backend with tsup..."
 npx tsup
 
+echo "Running database migrations..."
+npm run db:migrate
+
 echo "Building frontend with vite..."
 cd dashboard-ui
 npx vite build

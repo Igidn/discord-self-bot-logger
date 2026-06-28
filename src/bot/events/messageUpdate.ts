@@ -100,6 +100,7 @@ async function onMessageUpdate(client: Client, _db: DrizzleDb, oldMessage: Messa
         embedsJson: newMessage.embeds.length > 0 ? JSON.stringify(newMessage.embeds) : null,
         componentsJson: newMessage.components.length > 0 ? JSON.stringify(newMessage.components) : null,
         flags: newMessage.flags?.bitfield ?? 0,
+        attachmentCount: newMessage.attachments?.size ?? 0,
       }).onConflictDoNothing().run();
     } catch (err) {
       logger.error({ err }, 'Failed to backfill missing message before edit');

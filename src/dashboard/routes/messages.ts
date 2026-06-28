@@ -7,6 +7,8 @@ import {
   getMessageEdits,
   getMessageReactions,
   getSurroundingMessages,
+  attachChannels,
+  attachAttachments,
 } from '@/database/queries.js';
 import { db } from '@/database/index.js';
 import { attachments, messages, users } from '@/database/schema.js';
@@ -24,6 +26,51 @@ const querySchema = z.object({
   search: z.string().optional(),
   limit: z.coerce.number().min(1).max(100).default(50),
   cursor: z.string().optional(),
+});
+
+const browseSchema = z.object({
+  q: z.string().optional(),
+  guildId: z.string().optional(),
+  channelId: z.string().optional(),
+  authorId: z.string().optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
+  sort: z.enum(['newest', 'oldest']).optional(),
+  limit: z.coerce.number().min(1).max(100).default(50),
+  cursor: z.string().optional(),
+});
+
+// Browse all messages with cursor pagination, FTS search, and enrichment.
+// Must be declared before the `/:id` route so Express doesn't capture
+// "browse" as an id parameter.
+router.get('/browse', async (req, res, next) => {
+  try {
+    const query = browseSchema.parse(req.query);
+    const clauses: Filter[] = [];
+
+    if (query.guildId) clauses.push({ field: 'guildId', op: 'eq', value: query.guildId });
+    if (query.channelId) clauses.push({ field: 'channelId', op: 'eq', value: query.channelId });
+    if (query.authorId) clauses.push({ field: 'authorId', op: 'eq', value: query.authorId });
+    if (query.from) clauses.push({ field: 'createdAt', op: 'gte', value: query.from });
+    if (query.to) clauses.push({ field: 'createdAt', op: 'lte', value: query.to });
+
+    const filter = clauses.length > 0 ? { combinator: 'and' as const, filters: clauses } : undefined;
+    const { data, nextCursor } = searchMessages(query.q ?? '', filter, {
+      limit: query.limit,
+      cursor: query.cursor,
+      sort: query.sort,
+      requireFilter: false,
+    });
+
+    res.json({ data: attachAttachments(attachChannels(data)), nextCursor });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: err.errors });
+      return;
+    }
+    logger.error(err, 'Failed to browse messages');
+    next(err);
+  }
 });
 
 router.get('/', async (req, res, next) => {

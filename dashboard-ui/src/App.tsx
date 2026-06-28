@@ -7,6 +7,7 @@ import Setup from './pages/Setup';
 import GuildView from './pages/GuildView';
 import ChannelFeed from './pages/ChannelFeed';
 import Search from './pages/Search';
+import BrowseAll from './pages/BrowseAll';
 import MessageDetail from './pages/MessageDetail';
 import UserProfile from './pages/UserProfile';
 import Users from './pages/Users';
@@ -62,6 +63,7 @@ export default function App() {
               <Route path="/guilds/:id" element={<GuildView />} />
               <Route path="/guilds/:id/channels/:channelId" element={<ChannelFeed />} />
               <Route path="/search" element={<Search />} />
+              <Route path="/browse" element={<BrowseAll />} />
               <Route path="/messages/:id" element={<MessageDetail />} />
               <Route path="/users" element={<Users />} />
               <Route path="/users/:id" element={<UserProfile />} />

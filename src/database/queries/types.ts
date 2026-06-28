@@ -18,6 +18,10 @@ export interface MessageFilters {
 export interface Pagination {
   limit?: number;
   cursor?: string; // format: "createdAtTimestamp:id"
+  sort?: 'newest' | 'oldest';
+  /** When false, the unfiltered + no-text case returns all rows instead of
+   *  short-circuiting to an empty page. Used by the browse endpoint. */
+  requireFilter?: boolean;
 }
 
 export interface MessageWithAuthor {

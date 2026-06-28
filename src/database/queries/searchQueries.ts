@@ -13,6 +13,7 @@ import {
   isNotNull,
   ne,
   desc,
+  asc,
   type SQL,
 } from 'drizzle-orm';
 import { db } from '../index.js';
@@ -265,8 +266,11 @@ export function searchMessages(
 ): SearchResult {
   const trimmed = q.trim();
   const hasText = trimmed !== '';
+  const ascending = pagination.sort === 'oldest';
+  const orderDirection = ascending ? asc : desc;
+  const dirOp = ascending ? gt : lt;
 
-  if (!hasText && !filter) {
+  if (!hasText && !filter && pagination.requireFilter !== false) {
     return { data: [], nextCursor: null };
   }
 
@@ -278,7 +282,8 @@ export function searchMessages(
     conditions.push(filterSQL);
   }
 
-  // Cursor pagination — validate format "timestampMs:id" before applying
+  // Cursor pagination — validate format "timestampMs:id" before applying.
+  // Direction-aware: newest-first descends past the cursor, oldest-first ascends.
   let cursorDate: Date | null = null;
   let cursorId: string | null = null;
 
@@ -293,8 +298,8 @@ export function searchMessages(
         cursorId = cId;
         conditions.push(
           or(
-            lt(schema.messages.createdAt, cursorDate),
-            and(eq(schema.messages.createdAt, cursorDate), lt(schema.messages.id, cursorId))!
+            dirOp(schema.messages.createdAt, cursorDate),
+            and(eq(schema.messages.createdAt, cursorDate), dirOp(schema.messages.id, cursorId))!
           )!
         );
       }
@@ -311,7 +316,7 @@ export function searchMessages(
     }
 
     const rows = query
-      .orderBy(desc(schema.messages.createdAt), desc(schema.messages.id))
+      .orderBy(orderDirection(schema.messages.createdAt), orderDirection(schema.messages.id))
       .limit(limit + 1)
       .all();
 
@@ -320,16 +325,19 @@ export function searchMessages(
   }
 
   const sanitizedQ = sanitizeFtsQuery(trimmed);
+  const ftsDir = ascending ? sql`ASC` : sql`DESC`;
 
   // Try FTS5 first
   try {
     const cursorSQL =
       cursorDate && cursorId
-        ? sql`AND (m.created_at < ${Math.floor(cursorDate.getTime() / 1000)} OR (m.created_at = ${Math.floor(cursorDate.getTime() / 1000)} AND m.id < ${cursorId}))`
+        ? ascending
+          ? sql`AND (m.created_at > ${Math.floor(cursorDate.getTime() / 1000)} OR (m.created_at = ${Math.floor(cursorDate.getTime() / 1000)} AND m.id > ${cursorId}))`
+          : sql`AND (m.created_at < ${Math.floor(cursorDate.getTime() / 1000)} OR (m.created_at = ${Math.floor(cursorDate.getTime() / 1000)} AND m.id < ${cursorId}))`
         : sql``;
 
     const ftsResults = db.all<{ rowid: number }>(
-      sql`SELECT m.rowid FROM messages_fts m_fts JOIN messages m ON m.rowid = m_fts.rowid WHERE m_fts.content MATCH ${sanitizedQ} ${cursorSQL} ORDER BY m.created_at DESC, m.id DESC LIMIT ${limit * 3}`
+      sql`SELECT m.rowid FROM messages_fts m_fts JOIN messages m ON m.rowid = m_fts.rowid WHERE m_fts.content MATCH ${sanitizedQ} ${cursorSQL} ORDER BY m.created_at ${ftsDir}, m.id ${ftsDir} LIMIT ${limit * 3}`
     );
 
     if (ftsResults.length > 0) {
@@ -343,7 +351,7 @@ export function searchMessages(
       }
 
       const rows = query
-        .orderBy(desc(schema.messages.createdAt), desc(schema.messages.id))
+        .orderBy(orderDirection(schema.messages.createdAt), orderDirection(schema.messages.id))
         .limit(limit + 1)
         .all();
 
@@ -364,7 +372,7 @@ export function searchMessages(
   }
 
   const rows = query
-    .orderBy(desc(schema.messages.createdAt), desc(schema.messages.id))
+    .orderBy(orderDirection(schema.messages.createdAt), orderDirection(schema.messages.id))
     .limit(limit + 1)
     .all();
 

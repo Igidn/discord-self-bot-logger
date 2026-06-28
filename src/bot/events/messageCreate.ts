@@ -93,6 +93,7 @@ async function onMessageCreate(client: Client, _db: DrizzleDb, message: Message)
           embedsJson: message.embeds.length > 0 ? JSON.stringify(message.embeds) : null,
           componentsJson: message.components.length > 0 ? JSON.stringify(message.components) : null,
           flags: message.flags?.bitfield ?? 0,
+          attachmentCount: message.attachments?.size ?? 0,
         }).onConflictDoNothing().run();
       } catch (err) {
         logger.error({ err }, 'Failed to insert message');
