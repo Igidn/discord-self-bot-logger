@@ -75,12 +75,6 @@ export function getExportJob(jobId: string): ExportJob | undefined {
   return jobs.get(jobId);
 }
 
-export function getAllExportJobs(): ExportJob[] {
-  return Array.from(jobs.values());
-}
-
-export const exportJobs = jobs;
-
 async function runExportJob(job: ExportJob): Promise<void> {
   job.status = 'processing';
   job.startedAt = Date.now();

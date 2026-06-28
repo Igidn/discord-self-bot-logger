@@ -37,13 +37,6 @@ export interface PaginatedMessages {
   nextCursor: string | null;
 }
 
-export interface MessageDetail {
-  message: typeof schema.messages.$inferSelect | undefined;
-  edits: (typeof schema.messageEdits.$inferSelect)[];
-  attachments: (typeof schema.attachments.$inferSelect)[];
-  reactions: (typeof schema.reactions.$inferSelect)[];
-}
-
 export interface SearchResult {
   data: ((typeof schema.messages.$inferSelect) & MessageWithAuthor)[];
   nextCursor: string | null;
@@ -59,13 +52,4 @@ export interface GuildStats {
   totalVoiceEvents: number;
   topChannels: { channelId: string; channelName: string | null; guildIconUrl: string | null; count: number }[];
   topUsers: { userId: string; count: number }[];
-}
-
-export interface OverviewStats {
-  dailyCounts: { day: string; count: number }[];
-  totalMessages: number;
-  totalGuilds: number;
-  totalUsers: number;
-  topChannels: { channelId: string; channelName: string | null; guildIconUrl: string | null; count: number }[];
-  topUsers: { userId: string; username: string | null; count: number }[];
 }
