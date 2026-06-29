@@ -49,10 +49,21 @@ interface RecentMessage {
   authorId: string;
   content?: string | null;
   createdAt: string | number;
+  isDm?: boolean;
   author?: {
     id: string;
     username: string;
     avatarUrl?: string | null;
+  } | null;
+  channel?: {
+    id: string;
+    name: string | null;
+    type: number | null;
+  } | null;
+  guild?: {
+    id: string;
+    name: string | null;
+    iconUrl?: string | null;
   } | null;
 }
 
@@ -368,6 +379,17 @@ function MessageRow({ message }: { message: RecentMessage }) {
   const initials = username.slice(0, 2).toUpperCase();
   const content = message.content?.trim() || '(no text content)';
   const time = formatRelativeTime(message.createdAt);
+  const channelName = message.channel?.name ?? null;
+  const guildName = message.guild?.name ?? null;
+  // ponytail: for historical DMs with no stored channel row, falls back to the
+  // message author's username — correct for incoming DMs (author == recipient),
+  // but shows the self-bot's own name for historical outgoing DMs. New DMs store
+  // the recipient username as the channel name, so this only affects old rows.
+  const locationLabel = message.isDm
+    ? `${channelName ?? message.author?.username ?? message.channelId.slice(-6)} | DM`
+    : guildName
+      ? `${guildName} #${channelName ?? message.channelId.slice(-6)}`
+      : `#${channelName ?? message.channelId.slice(-6)}`;
 
   return (
     <Link
@@ -382,8 +404,8 @@ function MessageRow({ message }: { message: RecentMessage }) {
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium truncate">{username}</span>
           {message.channelId && (
-            <Badge variant="secondary" className="text-xs shrink-0">
-              #{message.channelId.slice(-4)}
+            <Badge variant="secondary" className="text-xs shrink-0 max-w-[240px] truncate">
+              {locationLabel}
             </Badge>
           )}
         </div>

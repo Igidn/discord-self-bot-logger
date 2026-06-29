@@ -8,6 +8,7 @@ import {
   getMessageReactions,
   getSurroundingMessages,
   attachChannels,
+  attachGuilds,
   attachAttachments,
 } from '@/database/queries.js';
 import { db } from '@/database/index.js';
@@ -111,10 +112,10 @@ router.get('/', async (req, res, next) => {
         searchFilters.filters.length > 0 ? searchFilters : undefined,
         pagination
       );
-      res.json({ data, nextCursor });
+      res.json({ data: attachGuilds(attachChannels(data)), nextCursor });
     } else {
       const { data, nextCursor } = getMessages(filters, pagination);
-      res.json({ data, nextCursor });
+      res.json({ data: attachGuilds(attachChannels(data)), nextCursor });
     }
   } catch (err) {
     if (err instanceof z.ZodError) {
