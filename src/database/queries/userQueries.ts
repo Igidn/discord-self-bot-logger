@@ -65,14 +65,14 @@ export function getAllUsers(query: AllUsersQuery = {}): AllUsersResult {
       FROM messages
       GROUP BY author_id
     ) m ON m.author_id = u.id
-    WHERE (${searchParam} = '' OR u.username LIKE ${searchParam} ESCAPE '\')
+    WHERE (${searchParam} = '' OR u.username LIKE ${searchParam} ESCAPE '\\')
     ORDER BY ${orderBySql}
     LIMIT ${limit} OFFSET ${offset}
   `);
 
   const countRow = db.all<{ count: number }>(sql`
     SELECT count(*) AS count FROM users u
-    WHERE (${searchParam} = '' OR u.username LIKE ${searchParam} ESCAPE '\')
+    WHERE (${searchParam} = '' OR u.username LIKE ${searchParam} ESCAPE '\\')
   `);
 
   return {
