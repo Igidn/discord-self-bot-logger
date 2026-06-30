@@ -12,6 +12,7 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
+  Sticker,
 } from 'lucide-react';
 import apiClient from '../api/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -102,6 +103,32 @@ function formatFileSize(bytes?: number | null): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// sticker_links stores markdown hyperlinks whose URL points at Discord's CDN.
+// PNG/APNG/GIF render natively in <img>; Lottie (.json) doesn't, but the CDN
+// serves a static PNG frame at the .png extension for the same id.
+function StickerImage({ name, url }: { name: string; url: string }) {
+  const [errored, setErrored] = useState(false);
+  const imgSrc = url.replace(/\.json(?=[?#]|$)/, '.png');
+  return (
+    <a href={url} target="_blank" rel="noreferrer" className="flex flex-col items-center gap-1" title={name}>
+      {errored ? (
+        <div className="size-40 rounded-lg bg-muted/40 flex items-center justify-center">
+          <Sticker className="size-9 text-muted-foreground" />
+        </div>
+      ) : (
+        <img
+          src={imgSrc}
+          alt={name}
+          loading="lazy"
+          onError={() => setErrored(true)}
+          className="size-40 object-contain rounded-lg hover:bg-muted/40 transition-colors"
+        />
+      )}
+      <span className="text-[10px] text-muted-foreground max-w-[10rem] truncate">{name}</span>
+    </a>
+  );
 }
 
 export default function MessageDetail() {
@@ -265,19 +292,12 @@ export default function MessageDetail() {
             </div>
 
             {stickerLinks.length > 0 && (
-              <div className="flex flex-wrap gap-2 pt-1">
-                {stickerLinks.map((link, i) => (
-                  <a
-                    key={i}
-                    href={link.match(/\(([^)]+)\)/)?.[1] ?? '#'}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                  >
-                    <Smile className="size-3" />
-                    {link.match(/\[([^\]]+)\]/)?.[1] ?? 'Sticker'}
-                  </a>
-                ))}
+              <div className="flex flex-wrap gap-3 pt-1">
+                {stickerLinks.map((link, i) => {
+                  const url = link.match(/\(([^)]+)\)/)?.[1] ?? '#';
+                  const name = link.match(/\[([^\]]+)\]/)?.[1] ?? 'Sticker';
+                  return <StickerImage key={i} name={name} url={url} />;
+                })}
               </div>
             )}
 
