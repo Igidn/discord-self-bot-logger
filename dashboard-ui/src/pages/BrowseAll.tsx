@@ -197,13 +197,14 @@ export default function BrowseAll() {
     };
   }, []);
 
-  // When the applied guild changes, populate its channels.
+  // Populate channels for the *draft* guild so the channel dropdown fills
+  // the instant a guild is selected, before filters are applied.
   useEffect(() => {
     setChannels([]);
-    if (!applied.guildId) return;
+    if (!draftGuildId) return;
     let cancelled = false;
     apiClient
-      .get<ChannelItem[]>(`/guilds/${applied.guildId}/channels`)
+      .get<ChannelItem[]>(`/guilds/${draftGuildId}/channels`)
       .then((res) => {
         if (!cancelled) setChannels(res.data);
       })
@@ -213,7 +214,7 @@ export default function BrowseAll() {
     return () => {
       cancelled = true;
     };
-  }, [applied.guildId]);
+  }, [draftGuildId]);
 
   /* ---------------- user autocomplete ---------------- */
 
