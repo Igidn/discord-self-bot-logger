@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
+  ChevronRight,
   MessageSquare,
   Calendar,
   Hash,
@@ -52,6 +53,7 @@ interface UserMessage {
 
 export default function UserProfile() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [user, setUser] = useState<UserProfileData | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [messages, setMessages] = useState<UserMessage[]>([]);
@@ -171,6 +173,19 @@ export default function UserProfile() {
               </Link>
             ))
           )}
+          <button
+            onClick={() =>
+              navigate(
+                `/browse?authorId=${encodeURIComponent(user.id)}&authorLabel=${encodeURIComponent(
+                  user.username + (user.discriminator ? `#${user.discriminator}` : '')
+                )}`
+              )
+            }
+            className="flex items-center justify-center gap-1 w-full mt-3 py-2 text-sm font-medium text-discord-blurple bg-discord-blurple/10 hover:bg-discord-blurple/20 rounded-lg transition-colors"
+          >
+            View all messages
+            <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
       )}
 
