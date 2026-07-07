@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   ArrowDownToLine,
@@ -128,11 +128,16 @@ const SYSTEM_TOGGLE_STORAGE_KEY = 'browse:showSystem';
 /* ------------------------------------------------------------------ */
 
 export default function BrowseAll() {
+  // Read authorId/authorLabel passed via URL (e.g. from UserProfile redirect).
+  const [searchParams] = useSearchParams();
+  const urlAuthorId = searchParams.get('authorId') ?? '';
+  const urlAuthorLabel = searchParams.get('authorLabel') ?? '';
+
   // Draft filter inputs (what the user is currently editing)
   const [draftGuildId, setDraftGuildId] = useState('');
   const [draftChannelId, setDraftChannelId] = useState('');
-  const [draftUserId, setDraftUserId] = useState(''); // snowflake
-  const [draftUserLabel, setDraftUserLabel] = useState(''); // free-text / selected label
+  const [draftUserId, setDraftUserId] = useState(urlAuthorId); // snowflake
+  const [draftUserLabel, setDraftUserLabel] = useState(urlAuthorLabel); // free-text / selected label
   const [draftFrom, setDraftFrom] = useState('');
   const [draftTo, setDraftTo] = useState('');
   const [draftSearch, setDraftSearch] = useState('');
@@ -141,6 +146,8 @@ export default function BrowseAll() {
   // Applied filters drive the fetch query
   const [applied, setApplied] = useState<AppliedFilters>(() => ({
     ...EMPTY_FILTERS,
+    authorId: urlAuthorId,
+    authorLabel: urlAuthorLabel,
     showSystem:
       typeof localStorage !== 'undefined' &&
       localStorage.getItem(SYSTEM_TOGGLE_STORAGE_KEY) === '1',
