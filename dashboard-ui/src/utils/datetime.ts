@@ -57,7 +57,7 @@ export function formatRelativeTime(value: TimestampValue): string {
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return diff >= 0 ? `${hrs}h ago` : `in ${hrs}h`;
   const days = Math.floor(hrs / 24);
-  if (days < 7) return diff >= 0 ? `${days}d ago` : `in ${days}d`;
+  if (days < 30) return diff >= 0 ? `${days}d ago` : `in ${days}d`;
   const months = Math.floor(days / 30);
   if (months < 12) return diff >= 0 ? `${months}mo ago` : `in ${months}mo`;
   const years = Math.floor(days / 365);

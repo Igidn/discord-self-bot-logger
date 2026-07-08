@@ -11,6 +11,7 @@ import {
 import apiClient from '../api/client';
 import { ActivityHeatmap } from '../components/ActivityHeatmap';
 import { MessageCard } from '../components/MessageCard';
+import { UserTimelines } from '../components/UserTimelines';
 import { formatDate, type TimestampValue } from '../utils/datetime';
 
 interface UserProfileData {
@@ -98,8 +99,8 @@ export default function UserProfile() {
   }
 
   return (
-    <div className="p-6 space-y-6 overflow-y-auto">
-      <div className="flex items-center gap-3">
+    <div className="p-6 overflow-y-auto">
+      <div className="flex items-center gap-3 mb-6">
         <button
           onClick={() => history.back()}
           className="p-2 rounded-lg bg-card border border-border hover:bg-muted transition-colors"
@@ -109,6 +110,9 @@ export default function UserProfile() {
         <h1 className="text-2xl font-bold">User Profile</h1>
       </div>
 
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-6 items-start">
+        {/* Left: profile + stats + tabs */}
+        <div className="space-y-6 min-w-0">
       {/* Profile Header */}
       <div className="bg-card border border-border rounded-xl p-6 flex items-center gap-4">
         {user.avatarUrl ? (
@@ -192,6 +196,13 @@ export default function UserProfile() {
       {activeTab === 'activity' && (
         <ActivityHeatmap userId={user.id} />
       )}
+        </div>
+
+        {/* Right: member / voice / presence timelines */}
+        <aside className="xl:sticky xl:top-6">
+          <UserTimelines userId={user.id} />
+        </aside>
+      </div>
     </div>
   );
 }
