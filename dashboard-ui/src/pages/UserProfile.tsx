@@ -18,7 +18,9 @@ interface UserProfileData {
   id: string;
   username: string;
   discriminator?: string | null;
+  displayName?: string | null;
   avatarUrl?: string | null;
+  bannerUrl?: string | null;
   bot?: number;
   firstSeenAt?: TimestampValue;
   stats: {
@@ -113,31 +115,56 @@ export default function UserProfile() {
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-6 items-start">
         {/* Left: profile + stats + tabs */}
         <div className="space-y-6 min-w-0">
-      {/* Profile Header */}
-      <div className="bg-card border border-border rounded-xl p-6 flex items-center gap-4">
-        {user.avatarUrl ? (
-          <img src={user.avatarUrl} alt={user.username} className="w-16 h-16 rounded-full" />
-        ) : (
-          <div className="w-16 h-16 rounded-full bg-discord-blurple flex items-center justify-center text-xl font-bold">
-            {user.username.charAt(0).toUpperCase()}
-          </div>
-        )}
-        <div>
-          <div className="text-xl font-bold">
-            {user.username}
-            {user.discriminator ? `#${user.discriminator}` : ''}
-            {user.bot ? (
-              <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-discord-blurple text-white">
-                BOT
-              </span>
-            ) : null}
-          </div>
-          <div className="text-xs text-muted-foreground mt-1">ID: {user.id}</div>
-          {user.firstSeenAt && (
-            <div className="text-xs text-muted-foreground/70 mt-0.5">
-              First seen {formatDate(user.firstSeenAt)}
-            </div>
+      {/* Profile Header — Discord-style banner with overlapping avatar */}
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
+        {/* Banner / landscape fallback */}
+        <div className="relative h-28 sm:h-32 w-full">
+          {user.bannerUrl ? (
+            <img
+              src={user.bannerUrl}
+              alt=""
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            // ponytail: gradient fallback uses theme tokens so it stays visible
+            // in both light/dark (bg-discord-* classes aren't defined in the
+            // config). Replace with the user's banner_color when that's stored.
+            <div className="w-full h-full bg-gradient-to-br from-foreground/15 to-muted" />
           )}
+        </div>
+
+        <div className="px-6 pb-6 -mt-10">
+          <div className="flex items-end gap-4">
+            {user.avatarUrl ? (
+              <img
+                src={user.avatarUrl}
+                alt={user.username}
+                className="w-20 h-20 rounded-full ring-4 ring-card object-cover shrink-0"
+              />
+            ) : (
+              <div className="w-20 h-20 rounded-full ring-4 ring-card bg-muted flex items-center justify-center text-2xl font-bold shrink-0">
+                {user.username.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div className="pb-1 min-w-0 flex-1">
+              <div className="text-xl font-bold flex items-center gap-2">
+                <span className="truncate">{user.displayName ?? user.username}</span>
+                {user.bot ? (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-foreground text-background font-medium">
+                    BOT
+                  </span>
+                ) : null}
+              </div>
+              <div className="text-sm text-muted-foreground truncate">
+                {user.username}
+                {user.discriminator ? `#${user.discriminator}` : ''}
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground/80">
+            <span>ID: {user.id}</span>
+            {user.firstSeenAt && <span>First seen {formatDate(user.firstSeenAt)}</span>}
+          </div>
         </div>
       </div>
 

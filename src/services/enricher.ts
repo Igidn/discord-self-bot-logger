@@ -7,6 +7,11 @@ export interface DiscordUser {
   username: string;
   discriminator?: string;
   avatarURL?: (options?: { size?: number }) => string | null;
+  // Global display name (Discord's `global_name`), distinct from username.
+  globalName?: string | null;
+  // User banner URL getter; throws on the lib if the banner hash wasn't
+  // fetched, so callers should only pass it when the object carries banner.
+  bannerURL?: (options?: { size?: number }) => string | null;
   bot: boolean;
 }
 
@@ -68,12 +73,27 @@ export function enrichUser(user: DiscordUser): void {
 
   const avatarUrl = typeof user.avatarURL === 'function' ? user.avatarURL({ size: 128 }) : null;
 
+  // ponytail: banner is only present when the gateway/REST payload carried
+  // the hash. Most message-author payloads omit it, so bannerUrl stays null
+  // for most users. A dedicated client.users.fetch() pass would fill it; add
+  // when banners are wanted for logged (not historical) users.
+  let bannerUrl: string | null = null;
+  if (typeof user.bannerURL === 'function') {
+    try {
+      bannerUrl = user.bannerURL({ size: 512 });
+    } catch {
+      bannerUrl = null; // USER_BANNER_NOT_FETCHED
+    }
+  }
+
   try {
     db.insert(users).values({
       id: user.id,
       username: user.username,
       discriminator: user.discriminator ?? '0',
       avatarUrl,
+      displayName: user.globalName ?? null,
+      bannerUrl,
       bot: user.bot,
       firstSeenAt: new Date(),
     }).onConflictDoUpdate({
@@ -82,6 +102,8 @@ export function enrichUser(user: DiscordUser): void {
         username: user.username,
         discriminator: user.discriminator ?? '0',
         avatarUrl,
+        displayName: user.globalName ?? null,
+        bannerUrl,
         bot: user.bot,
       },
     }).run();

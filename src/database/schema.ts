@@ -31,6 +31,8 @@ export const users = sqliteTable('users', {
   discriminator: text('discriminator'),
   avatarUrl: text('avatar_url'),
   bot: integer('bot', { mode: 'boolean' }).default(false),
+  displayName: text('display_name'),
+  bannerUrl: text('banner_url'),
   firstSeenAt: integer('first_seen_at', { mode: 'timestamp' }),
 });
 
