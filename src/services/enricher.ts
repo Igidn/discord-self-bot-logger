@@ -73,10 +73,11 @@ export function enrichUser(user: DiscordUser): void {
 
   const avatarUrl = typeof user.avatarURL === 'function' ? user.avatarURL({ size: 128 }) : null;
 
-  // ponytail: banner is only present when the gateway/REST payload carried
-  // the hash. Most message-author payloads omit it, so bannerUrl stays null
-  // for most users. A dedicated client.users.fetch() pass would fill it; add
-  // when banners are wanted for logged (not historical) users.
+  // ponytail: the gateway message-author payload omits the banner hash, so
+  // bannerUrl is usually null here. The route does an on-demand
+  // client.users.fetch() once per user to fill it (see users.ts). Only write
+  // banner/displayName when we actually carry a value, so a later message
+  // doesn't null out a banner the route already stored.
   let bannerUrl: string | null = null;
   if (typeof user.bannerURL === 'function') {
     try {
@@ -85,6 +86,18 @@ export function enrichUser(user: DiscordUser): void {
       bannerUrl = null; // USER_BANNER_NOT_FETCHED
     }
   }
+  const displayName = user.globalName ?? null;
+
+  // Always-updated fields; banner/displayName are conditional to avoid
+  // clobbering a previously-fetched (non-null) value with a null.
+  const set: Record<string, unknown> = {
+    username: user.username,
+    discriminator: user.discriminator ?? '0',
+    avatarUrl,
+    bot: user.bot,
+  };
+  if (displayName !== null) set.displayName = displayName;
+  if (bannerUrl !== null) set.bannerUrl = bannerUrl;
 
   try {
     db.insert(users).values({
@@ -92,20 +105,13 @@ export function enrichUser(user: DiscordUser): void {
       username: user.username,
       discriminator: user.discriminator ?? '0',
       avatarUrl,
-      displayName: user.globalName ?? null,
+      displayName,
       bannerUrl,
       bot: user.bot,
       firstSeenAt: new Date(),
     }).onConflictDoUpdate({
       target: users.id,
-      set: {
-        username: user.username,
-        discriminator: user.discriminator ?? '0',
-        avatarUrl,
-        displayName: user.globalName ?? null,
-        bannerUrl,
-        bot: user.bot,
-      },
+      set,
     }).run();
     userCache.set(user.id, true);
   } catch (err) {

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import z from 'zod';
+import { eq } from 'drizzle-orm';
 import {
   getUserById,
   getUserStats,
@@ -11,6 +12,9 @@ import {
   getPresenceUpdates,
   getLatestPresenceByUser,
 } from '@/database/queries.js';
+import { db } from '@/database/index.js';
+import { users } from '@/database/schema.js';
+import { client } from '@/bot/client.js';
 import { logger } from '@/utils/logger.js';
 
 const router = Router();
@@ -63,9 +67,17 @@ router.get('/:id', async (req, res, next) => {
       res.status(404).json({ error: 'User not found' });
       return;
     }
+    // ponytail: gateway message payloads omit the banner hash, so bannerUrl
+    // is null for most users. Fetch once on first profile view via the REST
+    // /users/:id endpoint and cache in the DB; subsequent views hit the row.
+    // Gated on client.readyAt so a not-yet-logged-in bot doesn't 500 here.
+    let resolved = user;
+    if (!user.bannerUrl && client.readyAt) {
+      resolved = (await refreshUserBanner(req.params.id, user)) ?? user;
+    }
     const stats = getUserStats(req.params.id);
     res.json({
-      ...user,
+      ...resolved,
       stats,
     });
   } catch (err) {
@@ -73,6 +85,30 @@ router.get('/:id', async (req, res, next) => {
     next(err);
   }
 });
+
+// On-demand banner/displayName fetch. Best-effort: never breaks the page when
+// the fetch fails (rate limit, unknown user, network). Returns the updated
+// row or null to fall back to what we already have.
+async function refreshUserBanner(
+  id: string,
+  current: typeof users.$inferSelect,
+): Promise<typeof users.$inferSelect | null> {
+  try {
+    const fetched = await client.users.fetch(id, { force: true, cache: true });
+    const bannerUrl = fetched.banner ? fetched.bannerURL({ size: 512 }) : null;
+    const displayName = fetched.globalName ?? null;
+    const set: Record<string, unknown> = {};
+    if (bannerUrl !== null) set.bannerUrl = bannerUrl;
+    if (displayName !== null) set.displayName = displayName;
+    if (Object.keys(set).length > 0) {
+      db.update(users).set(set).where(eq(users.id, id)).run();
+    }
+    return { ...current, bannerUrl, displayName };
+  } catch (err) {
+    logger.warn({ userId: id, err }, 'On-demand banner fetch failed');
+    return null;
+  }
+}
 
 router.get('/:id/activity/heatmap', async (req, res, next) => {
   try {
