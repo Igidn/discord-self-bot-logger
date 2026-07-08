@@ -86,15 +86,38 @@ export function getPresenceUpdates(
       userId: schema.presenceUpdates.userId,
       status: schema.presenceUpdates.status,
       clientStatus: schema.presenceUpdates.clientStatus,
+      activitiesJson: schema.presenceUpdates.activitiesJson,
       updatedAt: schema.presenceUpdates.updatedAt,
       username: schema.users.username,
       avatarUrl: schema.users.avatarUrl,
+      guildName: schema.guilds.name,
+      guildIconUrl: schema.guilds.iconUrl,
     })
     .from(schema.presenceUpdates)
     .leftJoin(schema.users, eq(schema.users.id, schema.presenceUpdates.userId))
+    .leftJoin(schema.guilds, eq(schema.guilds.id, schema.presenceUpdates.guildId))
     .$dynamic();
   if (conditions.length > 0) query = query.where(and(...conditions));
   return query.orderBy(desc(schema.presenceUpdates.updatedAt)).limit(limit).all();
+}
+
+export function getLatestPresenceByUser(userId: string) {
+  return db
+    .select({
+      guildId: schema.latestPresences.guildId,
+      userId: schema.latestPresences.userId,
+      status: schema.latestPresences.status,
+      clientStatus: schema.latestPresences.clientStatus,
+      activitiesJson: schema.latestPresences.activitiesJson,
+      updatedAt: schema.latestPresences.updatedAt,
+      guildName: schema.guilds.name,
+      guildIconUrl: schema.guilds.iconUrl,
+    })
+    .from(schema.latestPresences)
+    .leftJoin(schema.guilds, eq(schema.guilds.id, schema.latestPresences.guildId))
+    .where(eq(schema.latestPresences.userId, userId))
+    .orderBy(desc(schema.latestPresences.updatedAt))
+    .all();
 }
 
 export function getGuildAudit(

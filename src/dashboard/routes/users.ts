@@ -6,6 +6,10 @@ import {
   getMessagesByUser,
   getAllUsers,
   getUserActivityHeatmap,
+  getMemberEvents,
+  getVoiceEvents,
+  getPresenceUpdates,
+  getLatestPresenceByUser,
 } from '@/database/queries.js';
 import { logger } from '@/utils/logger.js';
 
@@ -26,6 +30,10 @@ const messagesQuery = z.object({
 const heatmapQuery = z.object({
   days: z.coerce.number().int().min(1).max(730).optional(),
   tz: z.coerce.number().int().min(-720).max(720).optional(),
+});
+
+const timelineQuery = z.object({
+  limit: z.coerce.number().int().min(1).max(500).default(100),
 });
 
 router.get('/', async (req, res, next) => {
@@ -93,6 +101,55 @@ router.get('/:id/messages', async (req, res, next) => {
       res.status(400).json({ error: err.errors });
       return;
     }
+    next(err);
+  }
+});
+
+// ponytail: member/voice queries filter by user_id with no per-user index;
+// guild-time index won't help, so these table-scan the guild partition.
+// Fine for small tables; add (user_id, created_at) index if slower than ~200ms.
+router.get('/:id/member-events', async (req, res, next) => {
+  try {
+    const query = timelineQuery.parse(req.query);
+    const data = getMemberEvents(undefined, req.params.id, undefined, query.limit);
+    res.json({ data });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: err.errors });
+      return;
+    }
+    logger.error(err, 'Failed to fetch member events');
+    next(err);
+  }
+});
+
+router.get('/:id/voice-events', async (req, res, next) => {
+  try {
+    const query = timelineQuery.parse(req.query);
+    const data = getVoiceEvents(undefined, req.params.id, query.limit);
+    res.json({ data });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: err.errors });
+      return;
+    }
+    logger.error(err, 'Failed to fetch voice events');
+    next(err);
+  }
+});
+
+router.get('/:id/presence', async (req, res, next) => {
+  try {
+    const query = timelineQuery.parse(req.query);
+    const history = getPresenceUpdates(undefined, req.params.id, query.limit);
+    const latest = getLatestPresenceByUser(req.params.id);
+    res.json({ history, latest });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: err.errors });
+      return;
+    }
+    logger.error(err, 'Failed to fetch presence');
     next(err);
   }
 });

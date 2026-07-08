@@ -484,6 +484,27 @@ logging:
       assert.ok(Array.isArray(body.data));
       assert.ok(body.data.some((d: any) => d.count > 0));
     });
+
+    it('should return member events for a user', async () => {
+      const body = await (await apiFetch('/users/user-1/member-events?limit=10')).json();
+      assert.ok(Array.isArray(body.data));
+      assert.ok(body.data.every((e: any) => e.userId === 'user-1'));
+      assert.ok(body.data.some((e: any) => e.eventType === 'JOIN'));
+    });
+
+    it('should return voice events for a user', async () => {
+      const body = await (await apiFetch('/users/user-1/voice-events?limit=10')).json();
+      assert.ok(Array.isArray(body.data));
+      assert.ok(body.data.every((e: any) => e.userId === 'user-1'));
+      assert.ok(body.data.some((e: any) => e.eventType === 'JOIN'));
+    });
+
+    it('should return presence history + latest for a user', async () => {
+      const body = await (await apiFetch('/users/user-1/presence?limit=10')).json();
+      assert.ok(Array.isArray(body.history));
+      assert.ok(Array.isArray(body.latest));
+      assert.ok(body.history.some((p: any) => p.status === 'online'));
+    });
   });
 
   /* ---------------------------------------------------------------- */
