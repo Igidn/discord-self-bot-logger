@@ -330,6 +330,17 @@ function AboutCard({
         <h2 className="text-sm font-semibold uppercase tracking-wider">
           About
         </h2>
+        {/* Messages — always available, parked in the card header so it reads
+            as a headline stat for the profile rather than just another row. */}
+        <div className="ml-auto flex items-center gap-1.5 text-discord-green">
+          <MessageSquare className="w-4 h-4" />
+          <span className="text-sm font-bold">
+            {messageCount.toLocaleString()}
+          </span>
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            Messages
+          </span>
+        </div>
       </div>
 
       {about?.bio ? (
@@ -354,11 +365,6 @@ function AboutCard({
           ))}
         </div>
       )}
-
-      {/* Messages — always available, lives here now instead of a stat card */}
-      <AboutRow icon={MessageSquare} label="Messages">
-        {messageCount.toLocaleString()}
-      </AboutRow>
 
       {about?.pronouns && (
         <AboutRow icon={UserCircle} label="Pronouns">
