@@ -81,6 +81,7 @@ export default function UserProfile() {
   const [messages, setMessages] = useState<UserMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [about, setAbout] = useState<UserAbout | null>(null);
+  const [lightbox, setLightbox] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"messages" | "activity">(
     "messages",
   );
@@ -155,7 +156,8 @@ export default function UserProfile() {
                 <img
                   src={user.bannerUrl}
                   alt=""
-                  className="w-full h-full object-cover"
+                  onClick={() => setLightbox(user.bannerUrl!)}
+                  className="w-full h-full object-cover cursor-zoom-in"
                 />
               ) : (
                 // ponytail: gradient fallback uses theme tokens so it stays visible
@@ -182,7 +184,8 @@ export default function UserProfile() {
                   <img
                     src={user.avatarUrl}
                     alt={user.username}
-                    className="w-20 h-20 rounded-full ring-4 ring-card object-cover shrink-0"
+                    onClick={() => setLightbox(user.avatarUrl!)}
+                    className="w-20 h-20 rounded-full ring-4 ring-card object-cover shrink-0 cursor-zoom-in"
                   />
                 ) : (
                   <div className="w-20 h-20 rounded-full ring-4 ring-card bg-muted flex items-center justify-center text-2xl font-bold shrink-0">
@@ -279,6 +282,28 @@ export default function UserProfile() {
           <UserTimelines userId={user.id} />
         </aside>
       </div>
+
+      {/* Full-size image lightbox. ponytail: no dependency — a fixed overlay
+          with click-to-close and Escape support. */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setLightbox(null)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setLightbox(null);
+          }}
+          tabIndex={0}
+          role="button"
+          aria-label="Close image"
+        >
+          <img
+            src={lightbox}
+            alt=""
+            className="max-w-full max-h-full object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }
