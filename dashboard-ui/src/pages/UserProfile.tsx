@@ -7,12 +7,16 @@ import {
   Calendar,
   Hash,
   Activity,
+  UserCircle,
+  Palette,
+  Users as UsersIcon,
+  Link as LinkIcon,
 } from "lucide-react";
 import apiClient from "../api/client";
 import { ActivityHeatmap } from "../components/ActivityHeatmap";
 import { MessageCard } from "../components/MessageCard";
 import { UserTimelines } from "../components/UserTimelines";
-import { formatDate, type TimestampValue } from "../utils/datetime";
+import { formatDate, formatDateTime, type TimestampValue } from "../utils/datetime";
 
 interface UserProfileData {
   id: string;
@@ -38,6 +42,22 @@ interface UserStats {
   lastMessageAt?: TimestampValue;
 }
 
+interface UserAbout {
+  bio: string | null;
+  pronouns: string | null;
+  accentColor: number | null;
+  bannerColor: number | null;
+  publicFlags: number | null;
+  badges: string[];
+  avatarDecorationUrl: string | null;
+  primaryGuild: { identityGuildId?: string | null; identityEnabled?: boolean | null; tag?: string | null } | null;
+  createdAt: number;
+  system: boolean;
+  mutualGuildsCount: number | null;
+  mutualFriendsCount: number | null;
+  connectedAccounts: Array<Record<string, unknown>> | null;
+}
+
 interface UserMessage {
   id: string;
   guildId?: string | null;
@@ -61,6 +81,7 @@ export default function UserProfile() {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [messages, setMessages] = useState<UserMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [about, setAbout] = useState<UserAbout | null>(null);
   const [activeTab, setActiveTab] = useState<"messages" | "activity">(
     "messages",
   );
@@ -79,6 +100,12 @@ export default function UserProfile() {
         setUser(uRes.data);
         setMessages(mRes.data.data);
         setStats(uRes.data.stats);
+        // ponytail: /about is best-effort (needs a shared guild for bio).
+        // Fetched separately so a profile fetch failure doesn't blank the page.
+        apiClient
+          .get<UserAbout>(`/users/${id}/about`)
+          .then((r) => setAbout(r.data))
+          .catch(() => setAbout(null));
       } catch (err) {
         console.error(err);
       } finally {
@@ -121,8 +148,10 @@ export default function UserProfile() {
         <div className="space-y-6 min-w-0">
           {/* Profile Header — Discord-style banner with overlapping avatar */}
           <div className="bg-card border border-border rounded-xl overflow-hidden">
-            {/* Banner / landscape fallback */}
-            <div className="relative h-28 sm:h-32 w-full">
+            {/* Banner / landscape fallback — Discord banners are ~16:5; matching the
+                ratio shows the whole banner unclipped (object-cover == contain here)
+                without full-bleed height. */}
+            <div className="relative w-full aspect-[16/5] max-h-64">
               {user.bannerUrl ? (
                 <img
                   src={user.bannerUrl}
@@ -131,9 +160,20 @@ export default function UserProfile() {
                 />
               ) : (
                 // ponytail: gradient fallback uses theme tokens so it stays visible
-                // in both light/dark (bg-discord-* classes aren't defined in the
-                // config). Replace with the user's banner_color when that's stored.
-                <div className="w-full h-full bg-gradient-to-br from-foreground/15 to-muted" />
+                // in both light/dark. Upgraded with the user's accent color once
+                // the /about fetch resolves, else a neutral theme gradient.
+                <div
+                  className="w-full h-full"
+                  style={
+                    about?.accentColor != null
+                      ? { backgroundColor: `#${about.accentColor.toString(16).padStart(6, "0")}` }
+                      : undefined
+                  }
+                >
+                  {about?.accentColor == null && (
+                    <div className="w-full h-full bg-gradient-to-br from-foreground/15 to-muted" />
+                  )}
+                </div>
               )}
             </div>
 
@@ -175,6 +215,9 @@ export default function UserProfile() {
               </div>
             </div>
           </div>
+
+          {/* About Me + account details — fetched live from Discord */}
+          <AboutCard about={about} />
 
           {/* Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -287,6 +330,135 @@ function StatCard({
           {label}
         </div>
       </div>
+    </div>
+  );
+}
+
+function AboutRow({
+  icon: Icon,
+  label,
+  children,
+}: {
+  icon: React.ElementType;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-start gap-3 py-2">
+      <Icon className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
+      <div className="min-w-0 flex-1">
+        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+          {label}
+        </div>
+        <div className="text-sm break-words">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function AboutCard({ about }: { about: UserAbout | null }) {
+  if (!about) {
+    // ponytail: null = fetch failed or bot not ready; render nothing rather
+    // than an empty card so the profile still looks intentional.
+    return null;
+  }
+  const accentHex =
+    about.accentColor != null
+      ? `#${about.accentColor.toString(16).padStart(6, "0")}`
+      : null;
+  const accountAgeMs = Date.now() - about.createdAt;
+  const accountAgeYears = (accountAgeMs / (365 * 24 * 3600 * 1000)).toFixed(1);
+
+  return (
+    <div className="bg-card border border-border rounded-xl p-5">
+      <div className="flex items-center gap-2 mb-3">
+        <UserCircle className="w-4 h-4 text-muted-foreground" />
+        <h2 className="text-sm font-semibold uppercase tracking-wider">
+          About
+        </h2>
+      </div>
+
+      {about.bio ? (
+        <p className="text-sm whitespace-pre-wrap break-words mb-3">
+          {about.bio}
+        </p>
+      ) : (
+        <p className="text-sm text-muted-foreground italic mb-3">
+          No "About Me" set.
+        </p>
+      )}
+
+      {about.badges.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          {about.badges.map((b) => (
+            <span
+              key={b}
+              className="text-[11px] px-2 py-0.5 rounded-full bg-discord-blurple/15 text-discord-blurple font-medium"
+            >
+              {b}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {about.pronouns && (
+        <AboutRow icon={UserCircle} label="Pronouns">
+          {about.pronouns}
+        </AboutRow>
+      )}
+
+      <AboutRow icon={Calendar} label="Account Created">
+        {formatDateTime(about.createdAt)}{" "}
+        <span className="text-muted-foreground">({accountAgeYears}y old)</span>
+      </AboutRow>
+
+      {accentHex && (
+        <AboutRow icon={Palette} label="Accent Color">
+          <span className="inline-flex items-center gap-2">
+            <span
+              className="inline-block w-4 h-4 rounded border border-border"
+              style={{ backgroundColor: accentHex }}
+            />
+            <span className="font-mono">{accentHex}</span>
+          </span>
+        </AboutRow>
+      )}
+
+      {about.primaryGuild?.tag && (
+        <AboutRow icon={Hash} label="Guild Tag">
+          {about.primaryGuild.tag}
+        </AboutRow>
+      )}
+
+      {(about.mutualGuildsCount != null || about.mutualFriendsCount != null) && (
+        <AboutRow icon={UsersIcon} label="Mutuals">
+          {about.mutualGuildsCount != null && (
+            <span>{about.mutualGuildsCount} guilds</span>
+          )}
+          {about.mutualGuildsCount != null && about.mutualFriendsCount != null && (
+            <span className="text-muted-foreground"> • </span>
+          )}
+          {about.mutualFriendsCount != null && (
+            <span>{about.mutualFriendsCount} friends</span>
+          )}
+        </AboutRow>
+      )}
+
+      {about.connectedAccounts && about.connectedAccounts.length > 0 && (
+        <AboutRow icon={LinkIcon} label="Connected Accounts">
+          <div className="flex flex-wrap gap-1.5">
+            {about.connectedAccounts.map((acc, i) => (
+              <span
+                key={i}
+                className="text-[11px] px-2 py-0.5 rounded bg-muted text-foreground"
+              >
+                {(acc.type as string) ?? "unknown"}
+                {acc.name ? `: ${acc.name}` : ""}
+              </span>
+            ))}
+          </div>
+        </AboutRow>
+      )}
     </div>
   );
 }

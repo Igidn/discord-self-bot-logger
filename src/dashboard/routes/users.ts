@@ -15,6 +15,7 @@ import {
 import { db } from '@/database/index.js';
 import { users } from '@/database/schema.js';
 import { client } from '@/bot/client.js';
+import { snowflakeToMilliseconds } from '@/utils/snowflake.js';
 import { logger } from '@/utils/logger.js';
 
 const router = Router();
@@ -82,6 +83,94 @@ router.get('/:id', async (req, res, next) => {
     });
   } catch (err) {
     logger.error(err, 'Failed to fetch user');
+    next(err);
+  }
+});
+
+// ponytail: badges are the public-facing UserFlags bits Discord actually
+// renders on a profile. Private/internal flags (SPAMMER, DELETED, ...) are
+// intentionally excluded so we never surface moderation-internal state.
+const PUBLIC_BADGES: Record<number, string> = {
+  1: 'Discord Staff',
+  2: 'Partnered Server Owner',
+  4: 'Hypesquad Events',
+  8: 'Bug Hunter (L1)',
+  64: 'Hypesquad Bravery',
+  128: 'Hypesquad Brilliance',
+  256: 'Hypesquad Balance',
+  512: 'Early Supporter',
+  16384: 'Bug Hunter (L2)',
+  65536: 'Verified Bot',
+  131072: 'Early Verified Bot Developer',
+  262144: 'Certified Moderator',
+  4194304: 'Active Developer',
+};
+
+function badgesForFlags(bitfield: number | null | undefined): string[] {
+  if (!bitfield) return [];
+  return Object.entries(PUBLIC_BADGES)
+    .filter(([bit]) => (bitfield & Number(bit)) !== 0)
+    .map(([, label]) => label);
+}
+
+// /users/:id/about — Discord "About Me" + extra account details fetched live
+// from the bot's view of the user. Best-effort: the profile endpoint only
+// works for users the bot shares a mutual guild/friend with, so bio/pronouns/
+// mutual counts are null when that fetch fails. User-level fields (accent
+// color, public flags, account age from snowflake) always come back.
+router.get('/:id/about', async (req, res, next) => {
+  try {
+    if (!client.readyAt) {
+      res.status(503).json({ error: 'Bot not ready' });
+      return;
+    }
+    const fetched = await client.users.fetch(req.params.id, { force: false, cache: true });
+
+    // Profile (bio/pronouns/mutuals) is gated on a shared guild/friend link.
+    // Wrapped so a 403/rate-limit still returns the user-level details.
+    let profile: Awaited<ReturnType<typeof fetched.getProfile>> | null = null;
+    try {
+      profile = await fetched.getProfile();
+    } catch (err) {
+      logger.warn({ userId: req.params.id, err }, 'Profile fetch failed');
+    }
+
+    const userProfile = (profile as Record<string, unknown> | null)?.user_profile as
+      | Record<string, unknown>
+      | undefined;
+    const bio =
+      (userProfile?.bio as string | undefined) ??
+      (profile as Record<string, unknown> | null)?.bio as string | undefined ??
+      null;
+    const pronouns = (userProfile?.pronouns as string | undefined) ?? null;
+    const mutualGuildsCount =
+      (profile as Record<string, unknown> | null)?.mutual_guilds_count as number | undefined ?? null;
+    const mutualFriendsCount =
+      (profile as Record<string, unknown> | null)?.mutual_friends_count as number | undefined ?? null;
+    const connectedAccounts =
+      (profile as Record<string, unknown> | null)?.connected_accounts as
+        | Array<Record<string, unknown>>
+        | undefined ?? null;
+
+    res.json({
+      bio: bio ?? null,
+      pronouns: pronouns ?? null,
+      accentColor: fetched.accentColor ?? null,
+      bannerColor: fetched.bannerColor ?? null,
+      publicFlags: fetched.flags?.bitfield ?? null,
+      badges: badgesForFlags(fetched.flags?.bitfield),
+      avatarDecorationUrl: fetched.avatarDecorationData?.asset
+        ? `https://cdn.discordapp.com/avatar-decoration-presets/${fetched.avatarDecorationData.asset}.png?size=96&passthrough=true`
+        : null,
+      primaryGuild: fetched.primaryGuild ?? null,
+      createdAt: snowflakeToMilliseconds(fetched.id),
+      system: fetched.system ?? false,
+      mutualGuildsCount,
+      mutualFriendsCount,
+      connectedAccounts,
+    });
+  } catch (err) {
+    logger.error(err, 'Failed to fetch user about');
     next(err);
   }
 });
