@@ -6,7 +6,6 @@ import {
   MessageSquare,
   Calendar,
   Hash,
-  Activity,
   UserCircle,
   Palette,
   Users as UsersIcon,
@@ -216,36 +215,10 @@ export default function UserProfile() {
             </div>
           </div>
 
-          {/* About Me + account details — fetched live from Discord */}
-          <AboutCard about={about} />
-
-          {/* Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <StatCard
-              icon={MessageSquare}
-              label="Messages"
-              value={stats?.messageCount ?? 0}
-              color="text-discord-green"
-            />
-            <StatCard
-              icon={Hash}
-              label="Guilds"
-              value={stats?.guildCount ?? 0}
-              color="text-discord-blurple"
-            />
-            <StatCard
-              icon={Calendar}
-              label="First Msg"
-              value={formatDate(stats?.firstMessageAt)}
-              color="text-discord-yellow"
-            />
-            <StatCard
-              icon={Activity}
-              label="Last Msg"
-              value={formatDate(stats?.lastMessageAt)}
-              color="text-discord-fuchsia"
-            />
-          </div>
+          {/* About Me + account details — fetched live from Discord.
+              Message count always renders (comes from stats); the rest of the
+              card is best-effort on the /about fetch. */}
+          <AboutCard about={about} messageCount={stats?.messageCount ?? 0} />
 
           {/* Tabs */}
           <div className="flex gap-2 border-b border-border">
@@ -310,30 +283,6 @@ export default function UserProfile() {
   );
 }
 
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  color,
-}: {
-  icon: React.ElementType;
-  label: string;
-  value: string | number;
-  color: string;
-}) {
-  return (
-    <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
-      <Icon className={`w-5 h-5 ${color}`} />
-      <div>
-        <div className="text-lg font-bold">{value}</div>
-        <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
-          {label}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function AboutRow({
   icon: Icon,
   label,
@@ -356,18 +305,23 @@ function AboutRow({
   );
 }
 
-function AboutCard({ about }: { about: UserAbout | null }) {
-  if (!about) {
-    // ponytail: null = fetch failed or bot not ready; render nothing rather
-    // than an empty card so the profile still looks intentional.
-    return null;
-  }
+function AboutCard({
+  about,
+  messageCount,
+}: {
+  about: UserAbout | null;
+  messageCount: number;
+}) {
+  // ponytail: about is best-effort (needs a shared guild for bio). When it's
+  // null we still render the card with the message-count row only, so the
+  // one stat that's always available isn't lost.
   const accentHex =
-    about.accentColor != null
+    about?.accentColor != null
       ? `#${about.accentColor.toString(16).padStart(6, "0")}`
       : null;
-  const accountAgeMs = Date.now() - about.createdAt;
-  const accountAgeYears = (accountAgeMs / (365 * 24 * 3600 * 1000)).toFixed(1);
+  const accountAgeYears = about
+    ? ((Date.now() - about.createdAt) / (365 * 24 * 3600 * 1000)).toFixed(1)
+    : null;
 
   return (
     <div className="bg-card border border-border rounded-xl p-5">
@@ -378,7 +332,7 @@ function AboutCard({ about }: { about: UserAbout | null }) {
         </h2>
       </div>
 
-      {about.bio ? (
+      {about?.bio ? (
         <p className="text-sm whitespace-pre-wrap break-words mb-3">
           {about.bio}
         </p>
@@ -388,7 +342,7 @@ function AboutCard({ about }: { about: UserAbout | null }) {
         </p>
       )}
 
-      {about.badges.length > 0 && (
+      {about?.badges && about.badges.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-2">
           {about.badges.map((b) => (
             <span
@@ -401,18 +355,25 @@ function AboutCard({ about }: { about: UserAbout | null }) {
         </div>
       )}
 
-      {about.pronouns && (
+      {/* Messages — always available, lives here now instead of a stat card */}
+      <AboutRow icon={MessageSquare} label="Messages">
+        {messageCount.toLocaleString()}
+      </AboutRow>
+
+      {about?.pronouns && (
         <AboutRow icon={UserCircle} label="Pronouns">
           {about.pronouns}
         </AboutRow>
       )}
 
-      <AboutRow icon={Calendar} label="Account Created">
-        {formatDateTime(about.createdAt)}{" "}
-        <span className="text-muted-foreground">({accountAgeYears}y old)</span>
-      </AboutRow>
+      {about && (
+        <AboutRow icon={Calendar} label="Account Created">
+          {formatDateTime(about.createdAt)}{" "}
+          <span className="text-muted-foreground">({accountAgeYears}y old)</span>
+        </AboutRow>
+      )}
 
-      {accentHex && (
+      {accentHex && about && (
         <AboutRow icon={Palette} label="Accent Color">
           <span className="inline-flex items-center gap-2">
             <span
@@ -424,13 +385,13 @@ function AboutCard({ about }: { about: UserAbout | null }) {
         </AboutRow>
       )}
 
-      {about.primaryGuild?.tag && (
+      {about?.primaryGuild?.tag && (
         <AboutRow icon={Hash} label="Guild Tag">
           {about.primaryGuild.tag}
         </AboutRow>
       )}
 
-      {(about.mutualGuildsCount != null || about.mutualFriendsCount != null) && (
+      {about && (about.mutualGuildsCount != null || about.mutualFriendsCount != null) && (
         <AboutRow icon={UsersIcon} label="Mutuals">
           {about.mutualGuildsCount != null && (
             <span>{about.mutualGuildsCount} guilds</span>
@@ -444,7 +405,7 @@ function AboutCard({ about }: { about: UserAbout | null }) {
         </AboutRow>
       )}
 
-      {about.connectedAccounts && about.connectedAccounts.length > 0 && (
+      {about?.connectedAccounts && about.connectedAccounts.length > 0 && (
         <AboutRow icon={LinkIcon} label="Connected Accounts">
           <div className="flex flex-wrap gap-1.5">
             {about.connectedAccounts.map((acc, i) => (
