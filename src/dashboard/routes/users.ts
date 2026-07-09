@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import z from 'zod';
+import { eq } from 'drizzle-orm';
 import {
   getUserById,
   getUserStats,
@@ -11,6 +12,10 @@ import {
   getPresenceUpdates,
   getLatestPresenceByUser,
 } from '@/database/queries.js';
+import { db } from '@/database/index.js';
+import { users } from '@/database/schema.js';
+import { client } from '@/bot/client.js';
+import { snowflakeToMilliseconds } from '@/utils/snowflake.js';
 import { logger } from '@/utils/logger.js';
 
 const router = Router();
@@ -63,9 +68,20 @@ router.get('/:id', async (req, res, next) => {
       res.status(404).json({ error: 'User not found' });
       return;
     }
+    // ponytail: gateway message payloads omit the banner hash, so bannerUrl
+    // is null for most users. Fetch once on first profile view via the REST
+    // /users/:id endpoint and cache in the DB; the attempt set guarantees we
+    // only try once per ID per server lifetime — a user with no banner stays
+    // null after a successful fetch, and a 403 doesn't spam the log on every
+    // view. Gated on client.readyAt so a not-yet-logged-in bot doesn't 500.
+    let resolved = user;
+    if (!user.bannerUrl && client.readyAt && !bannerFetchAttempted.has(req.params.id)) {
+      resolved = (await refreshUserBanner(req.params.id, user)) ?? user;
+      bannerFetchAttempted.add(req.params.id);
+    }
     const stats = getUserStats(req.params.id);
     res.json({
-      ...user,
+      ...resolved,
       stats,
     });
   } catch (err) {
@@ -73,6 +89,133 @@ router.get('/:id', async (req, res, next) => {
     next(err);
   }
 });
+
+// ponytail: badges are the public-facing UserFlags bits Discord actually
+// renders on a profile. Private/internal flags (SPAMMER, DELETED, ...) are
+// intentionally excluded so we never surface moderation-internal state.
+const PUBLIC_BADGES: Record<number, string> = {
+  1: 'Discord Staff',
+  2: 'Partnered Server Owner',
+  4: 'Hypesquad Events',
+  8: 'Bug Hunter (L1)',
+  64: 'Hypesquad Bravery',
+  128: 'Hypesquad Brilliance',
+  256: 'Hypesquad Balance',
+  512: 'Early Supporter',
+  16384: 'Bug Hunter (L2)',
+  65536: 'Verified Bot',
+  131072: 'Early Verified Bot Developer',
+  262144: 'Certified Moderator',
+  4194304: 'Active Developer',
+};
+
+function badgesForFlags(bitfield: number | null | undefined): string[] {
+  if (!bitfield) return [];
+  return Object.entries(PUBLIC_BADGES)
+    .filter(([bit]) => (bitfield & Number(bit)) !== 0)
+    .map(([, label]) => label);
+}
+
+// /users/:id/about — Discord "About Me" + extra account details fetched live
+// from the bot's view of the user. Best-effort: the profile endpoint only
+// works for users the bot shares a mutual guild/friend with, so bio/pronouns/
+// mutual counts are null when that fetch fails. User-level fields (accent
+// color, public flags, account age from snowflake) always come back.
+router.get('/:id/about', async (req, res, next) => {
+  try {
+    if (!client.readyAt) {
+      res.status(503).json({ error: 'Bot not ready' });
+      return;
+    }
+    const fetched = await client.users.fetch(req.params.id, { force: false, cache: true });
+
+    // Profile (bio/pronouns/mutuals) is gated on a shared guild/friend link.
+    // Wrapped so a 403/rate-limit still returns the user-level details.
+    let profile: Awaited<ReturnType<typeof fetched.getProfile>> | null = null;
+    try {
+      profile = await fetched.getProfile();
+    } catch (err) {
+      logger.warn({ userId: req.params.id, err }, 'Profile fetch failed');
+    }
+
+    const userProfile = (profile as Record<string, unknown> | null)?.user_profile as
+      | Record<string, unknown>
+      | undefined;
+    const bio =
+      (userProfile?.bio as string | undefined) ??
+      (profile as Record<string, unknown> | null)?.bio as string | undefined ??
+      null;
+    const pronouns = (userProfile?.pronouns as string | undefined) ?? null;
+    const mutualGuildsCount =
+      (profile as Record<string, unknown> | null)?.mutual_guilds_count as number | undefined ?? null;
+    const mutualFriendsCount =
+      (profile as Record<string, unknown> | null)?.mutual_friends_count as number | undefined ?? null;
+    const connectedAccounts =
+      (profile as Record<string, unknown> | null)?.connected_accounts as
+        | Array<Record<string, unknown>>
+        | undefined ?? null;
+
+    res.json({
+      bio: bio ?? null,
+      pronouns: pronouns ?? null,
+      accentColor: fetched.accentColor ?? null,
+      bannerColor: fetched.bannerColor ?? null,
+      publicFlags: fetched.flags?.bitfield ?? null,
+      badges: badgesForFlags(fetched.flags?.bitfield),
+      avatarDecorationUrl: fetched.avatarDecorationData?.asset
+        ? `https://cdn.discordapp.com/avatar-decoration-presets/${fetched.avatarDecorationData.asset}.png?size=96&passthrough=true`
+        : null,
+      primaryGuild: fetched.primaryGuild ?? null,
+      createdAt: snowflakeToMilliseconds(fetched.id),
+      system: fetched.system ?? false,
+      mutualGuildsCount,
+      mutualFriendsCount,
+      connectedAccounts,
+    });
+  } catch (err) {
+    logger.error(err, 'Failed to fetch user about');
+    next(err);
+  }
+});
+
+// IDs we've already attempted an on-demand banner fetch for this session.
+// A user with no banner stays null after a successful fetch, and a 403
+// (deleted/inaccessible account) would otherwise re-fire every view.
+// ponytail: in-process Set, resets on restart — fine, one retry per boot.
+const bannerFetchAttempted = new Set<string>();
+
+// On-demand banner/displayName fetch. Best-effort: never breaks the page when
+// the fetch fails (rate limit, unknown user, network). Returns the updated
+// row or null to fall back to what we already have.
+async function refreshUserBanner(
+  id: string,
+  current: typeof users.$inferSelect,
+): Promise<typeof users.$inferSelect | null> {
+  try {
+    const fetched = await client.users.fetch(id, { force: true, cache: true });
+    const bannerUrl = fetched.banner ? fetched.bannerURL({ size: 512 }) : null;
+    const displayName = fetched.globalName ?? null;
+    const set: Record<string, unknown> = {};
+    if (bannerUrl !== null) set.bannerUrl = bannerUrl;
+    if (displayName !== null) set.displayName = displayName;
+    if (Object.keys(set).length > 0) {
+      db.update(users).set(set).where(eq(users.id, id)).run();
+    }
+    return { ...current, bannerUrl, displayName };
+  } catch (err: unknown) {
+    // 40001 / 403 Unauthorized = the bot can't see this user (deleted,
+    // blocked, or no shared guild). Expected, not a bug — log at debug so
+    // it doesn't look like a fault, and the attempt set above stops retries.
+    const code = (err as { code?: number; httpStatus?: number })?.code;
+    const httpStatus = (err as { httpStatus?: number })?.httpStatus;
+    if (code === 40001 || httpStatus === 403) {
+      logger.debug({ userId: id }, 'Banner fetch skipped: bot cannot access user');
+    } else {
+      logger.warn({ userId: id, err }, 'On-demand banner fetch failed');
+    }
+    return null;
+  }
+}
 
 router.get('/:id/activity/heatmap', async (req, res, next) => {
   try {

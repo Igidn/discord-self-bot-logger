@@ -29,6 +29,13 @@
       "when": 1715251200003,
       "tag": "0004_add_attachment_count",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "4",
+      "when": 1715251200004,
+      "tag": "0005_user_banner_display_name",
+      "breakpoints": true
     }
   ]
 }

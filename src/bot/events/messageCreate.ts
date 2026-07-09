@@ -27,6 +27,8 @@ async function onMessageCreate(client: Client, _db: DrizzleDb, message: Message)
           username: message.author.username,
           discriminator: message.author.discriminator,
           avatarURL: message.author.avatarURL.bind(message.author) as any,
+          globalName: message.author.globalName ?? null,
+          bannerURL: message.author.bannerURL.bind(message.author) as any,
           bot: message.author.bot,
         });
       }
@@ -64,6 +66,8 @@ async function onMessageCreate(client: Client, _db: DrizzleDb, message: Message)
               username: recipient.username,
               discriminator: recipient.discriminator,
               avatarURL: recipient.avatarURL?.bind(recipient) as any,
+              globalName: recipient.globalName ?? null,
+              bannerURL: recipient.bannerURL?.bind(recipient) as any,
               bot: recipient.bot ?? false,
             });
           }
