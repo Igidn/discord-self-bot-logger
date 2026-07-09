@@ -70,11 +70,14 @@ router.get('/:id', async (req, res, next) => {
     }
     // ponytail: gateway message payloads omit the banner hash, so bannerUrl
     // is null for most users. Fetch once on first profile view via the REST
-    // /users/:id endpoint and cache in the DB; subsequent views hit the row.
-    // Gated on client.readyAt so a not-yet-logged-in bot doesn't 500 here.
+    // /users/:id endpoint and cache in the DB; the attempt set guarantees we
+    // only try once per ID per server lifetime — a user with no banner stays
+    // null after a successful fetch, and a 403 doesn't spam the log on every
+    // view. Gated on client.readyAt so a not-yet-logged-in bot doesn't 500.
     let resolved = user;
-    if (!user.bannerUrl && client.readyAt) {
+    if (!user.bannerUrl && client.readyAt && !bannerFetchAttempted.has(req.params.id)) {
       resolved = (await refreshUserBanner(req.params.id, user)) ?? user;
+      bannerFetchAttempted.add(req.params.id);
     }
     const stats = getUserStats(req.params.id);
     res.json({
@@ -175,6 +178,12 @@ router.get('/:id/about', async (req, res, next) => {
   }
 });
 
+// IDs we've already attempted an on-demand banner fetch for this session.
+// A user with no banner stays null after a successful fetch, and a 403
+// (deleted/inaccessible account) would otherwise re-fire every view.
+// ponytail: in-process Set, resets on restart — fine, one retry per boot.
+const bannerFetchAttempted = new Set<string>();
+
 // On-demand banner/displayName fetch. Best-effort: never breaks the page when
 // the fetch fails (rate limit, unknown user, network). Returns the updated
 // row or null to fall back to what we already have.
@@ -193,8 +202,17 @@ async function refreshUserBanner(
       db.update(users).set(set).where(eq(users.id, id)).run();
     }
     return { ...current, bannerUrl, displayName };
-  } catch (err) {
-    logger.warn({ userId: id, err }, 'On-demand banner fetch failed');
+  } catch (err: unknown) {
+    // 40001 / 403 Unauthorized = the bot can't see this user (deleted,
+    // blocked, or no shared guild). Expected, not a bug — log at debug so
+    // it doesn't look like a fault, and the attempt set above stops retries.
+    const code = (err as { code?: number; httpStatus?: number })?.code;
+    const httpStatus = (err as { httpStatus?: number })?.httpStatus;
+    if (code === 40001 || httpStatus === 403) {
+      logger.debug({ userId: id }, 'Banner fetch skipped: bot cannot access user');
+    } else {
+      logger.warn({ userId: id, err }, 'On-demand banner fetch failed');
+    }
     return null;
   }
 }
