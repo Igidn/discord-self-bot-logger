@@ -4,8 +4,6 @@ import { SocketProvider } from './socket/context';
 import { Layout } from './components/Layout';
 import Overview from './pages/Overview';
 import Setup from './pages/Setup';
-import GuildView from './pages/GuildView';
-import ChannelFeed from './pages/ChannelFeed';
 import Search from './pages/Search';
 import BrowseAll from './pages/BrowseAll';
 import MessageDetail from './pages/MessageDetail';
@@ -60,8 +58,6 @@ export default function App() {
             <Route element={<Layout />}>
               <Route path="/" element={<Overview />} />
               <Route path="/setup" element={<Setup />} />
-              <Route path="/guilds/:id" element={<GuildView />} />
-              <Route path="/guilds/:id/channels/:channelId" element={<ChannelFeed />} />
               <Route path="/search" element={<Search />} />
               <Route path="/browse" element={<BrowseAll />} />
               <Route path="/messages/:id" element={<MessageDetail />} />

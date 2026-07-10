@@ -43,7 +43,6 @@ const systemNav = [{ to: '/settings', icon: SettingsIcon, label: 'Settings' }];
 export function AppSidebar() {
   const location = useLocation();
   const { status } = useSocketContext();
-  const guildId = getGuildId(location.pathname);
 
   const isConnected = status === 'connected';
 
@@ -114,24 +113,6 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {guildId ? (
-          <SidebarGroup>
-            <SidebarGroupLabel>Current Guild</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild tooltip="Guild workspace">
-                    <Link to={`/guilds/${guildId}`}>
-                      <Server />
-                      <span className="truncate">Guild {guildId}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ) : null}
-
         <SidebarGroup className="mt-auto">
           <SidebarGroupContent>
             <SidebarMenu>
@@ -188,11 +169,6 @@ function isActivePath(pathname: string, to: string) {
     return pathname === '/';
   }
   return pathname === to || pathname.startsWith(`${to}/`);
-}
-
-function getGuildId(pathname: string) {
-  const match = pathname.match(/^\/guilds\/([^/]+)/);
-  return match?.[1] ?? null;
 }
 
 function statusLabel(status: string) {
