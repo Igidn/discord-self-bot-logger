@@ -44,14 +44,18 @@ export function getGuildStats(guildId: string): GuildStats {
     LIMIT 10
   `);
 
-  const topUsers = db.all<{ userId: string; count: number }>(sql`
-    SELECT author_id AS userId, count(*) AS count
-    FROM messages
-    WHERE guild_id = ${guildId}
-    GROUP BY author_id
+  const topUsers = db.all<{ userId: string; username: string | null; avatarUrl: string | null; count: number }>(sql`
+    SELECT m.author_id AS userId, u.username AS username, u.avatar_url AS avatarUrl, count(*) AS count
+    FROM messages m
+    LEFT JOIN users u ON u.id = m.author_id
+    WHERE m.guild_id = ${guildId}
+    GROUP BY m.author_id
     ORDER BY count DESC
     LIMIT 10
   `);
+
+  const firstLoggedAt =
+    db.get<{ ts: number | null }>(sql`SELECT min(created_at) AS ts FROM messages WHERE guild_id = ${guildId}`)?.ts ?? null;
 
   return {
     totalMessages,
@@ -61,6 +65,7 @@ export function getGuildStats(guildId: string): GuildStats {
     totalReactions,
     totalMemberEvents,
     totalVoiceEvents,
+    firstLoggedAt,
     topChannels,
     topUsers,
   };
@@ -70,8 +75,22 @@ export function getGuildStats(guildId: string): GuildStats {
 /*  getDailyMessageCounts / getTopChannels / getTopUsers               */
 /* ------------------------------------------------------------------ */
 
-export function getDailyMessageCounts(days: number = 30): { day: string; count: number }[] {
+export function getDailyMessageCounts(
+  days: number = 30,
+  guildId?: string,
+): { day: string; count: number }[] {
   const sinceSec = Math.floor((Date.now() - days * 24 * 60 * 60 * 1000) / 1000);
+  // ponytail: optional guild filter — same query, one extra predicate. The
+  // global overview path (guildId undefined) keeps the original WHERE.
+  if (guildId) {
+    return db.all<{ day: string; count: number }>(sql`
+      SELECT date(created_at, 'unixepoch', 'localtime') AS day, count(*) AS count
+      FROM messages
+      WHERE created_at >= ${sinceSec} AND guild_id = ${guildId}
+      GROUP BY day
+      ORDER BY day DESC
+    `);
+  }
   return db.all<{ day: string; count: number }>(sql`
     SELECT date(created_at, 'unixepoch', 'localtime') AS day, count(*) AS count
     FROM messages

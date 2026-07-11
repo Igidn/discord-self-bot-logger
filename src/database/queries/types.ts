@@ -50,6 +50,7 @@ export interface GuildStats {
   totalReactions: number;
   totalMemberEvents: number;
   totalVoiceEvents: number;
+  firstLoggedAt: number | null;
   topChannels: { channelId: string; channelName: string | null; guildIconUrl: string | null; count: number }[];
-  topUsers: { userId: string; count: number }[];
+  topUsers: { userId: string; username: string | null; avatarUrl: string | null; count: number }[];
 }

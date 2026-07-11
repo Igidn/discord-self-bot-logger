@@ -128,13 +128,15 @@ const SYSTEM_TOGGLE_STORAGE_KEY = 'browse:showSystem';
 /* ------------------------------------------------------------------ */
 
 export default function BrowseAll() {
-  // Read authorId/authorLabel passed via URL (e.g. from UserProfile redirect).
+  // Read authorId/authorLabel/guild passed via URL (e.g. from UserProfile or
+  // GuildView drill-outs).
   const [searchParams] = useSearchParams();
   const urlAuthorId = searchParams.get('authorId') ?? '';
   const urlAuthorLabel = searchParams.get('authorLabel') ?? '';
+  const urlGuildId = searchParams.get('guild') ?? '';
 
   // Draft filter inputs (what the user is currently editing)
-  const [draftGuildId, setDraftGuildId] = useState('');
+  const [draftGuildId, setDraftGuildId] = useState(urlGuildId);
   const [draftChannelId, setDraftChannelId] = useState('');
   const [draftUserId, setDraftUserId] = useState(urlAuthorId); // snowflake
   const [draftUserLabel, setDraftUserLabel] = useState(urlAuthorLabel); // free-text / selected label
@@ -146,6 +148,7 @@ export default function BrowseAll() {
   // Applied filters drive the fetch query
   const [applied, setApplied] = useState<AppliedFilters>(() => ({
     ...EMPTY_FILTERS,
+    guildId: urlGuildId,
     authorId: urlAuthorId,
     authorLabel: urlAuthorLabel,
     showSystem:

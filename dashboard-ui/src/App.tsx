@@ -12,6 +12,8 @@ import Users from './pages/Users';
 import Activity from './pages/Activity';
 import Stats from './pages/Stats';
 import Settings from './pages/Settings';
+import Guilds from './pages/Guilds';
+import GuildView from './pages/GuildView';
 
 class AppErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   state = { hasError: false };
@@ -65,6 +67,8 @@ export default function App() {
               <Route path="/users/:id" element={<UserProfile />} />
               <Route path="/activity" element={<Activity />} />
               <Route path="/stats" element={<Stats />} />
+              <Route path="/guilds" element={<Guilds />} />
+              <Route path="/guilds/:id" element={<GuildView />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>

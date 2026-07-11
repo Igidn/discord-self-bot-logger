@@ -33,10 +33,11 @@ const monitorNav = [
 ];
 
 const exploreNav = [
+  { to: '/guilds', icon: Server, label: 'Guilds' },
   { to: '/browse', icon: MessagesSquare, label: 'Browse All' },
   { to: '/users', icon: Users, label: 'Users' },
   { to: '/setup', icon: MonitorCog, label: 'Setup' },
-];
+]
 
 const systemNav = [{ to: '/settings', icon: SettingsIcon, label: 'Settings' }];
 

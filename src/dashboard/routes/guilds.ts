@@ -32,8 +32,8 @@ router.get('/', async (_req, res, next) => {
 
 router.get('/:id', async (req, res, next) => {
   try {
-    const rows = db.all<{ id: string; name: string; iconUrl: string | null; memberCount: number | null; messageCount: number }>(sql`
-      SELECT g.id, g.name, g.icon_url AS iconUrl, g.member_count AS memberCount, count(m.id) AS messageCount
+    const rows = db.all<{ id: string; name: string; iconUrl: string | null; ownerId: string | null; joinedAt: number | null; memberCount: number | null; messageCount: number }>(sql`
+      SELECT g.id, g.name, g.icon_url AS iconUrl, g.owner_id AS ownerId, g.joined_at AS joinedAt, g.member_count AS memberCount, count(m.id) AS messageCount
       FROM guilds g
       LEFT JOIN messages m ON m.guild_id = g.id
       WHERE g.id = ${req.params.id}
@@ -50,6 +50,8 @@ router.get('/:id', async (req, res, next) => {
       id: g.id,
       name: g.name,
       icon: g.iconUrl,
+      ownerId: g.ownerId,
+      joinedAt: g.joinedAt,
       messageCount: g.messageCount,
       memberCount: g.memberCount ?? 0,
     });

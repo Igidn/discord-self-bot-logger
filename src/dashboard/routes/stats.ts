@@ -45,11 +45,30 @@ router.get('/overview', async (req, res, next) => {
   }
 });
 
+const guildQuery = z.object({
+  range: z.string().optional(),
+  days: z.coerce.number().min(1).max(365).default(30),
+});
+
 router.get('/guild/:id', async (req, res, next) => {
   try {
-    const stats = getGuildStats(req.params.id);
-    res.json(stats);
+    const query = guildQuery.parse(req.query);
+    const parsedRange = query.range !== undefined ? parseInt(query.range, 10) : NaN;
+    const days = !Number.isNaN(parsedRange)
+      ? Math.min(Math.max(parsedRange, 1), 365)
+      : query.days;
+
+    const guildId = req.params.id;
+    const [stats, dailyCounts] = await Promise.all([
+      Promise.resolve(getGuildStats(guildId)),
+      Promise.resolve(getDailyMessageCounts(days, guildId)),
+    ]);
+    res.json({ ...stats, dailyCounts, periodDays: days });
   } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: err.errors });
+      return;
+    }
     next(err);
   }
 });
