@@ -8,8 +8,6 @@ import {
   Hash,
   MessagesSquare,
   Paperclip,
-  Search,
-  Server,
   Sparkles,
   Trash2,
   TrendingUp,
@@ -388,27 +386,6 @@ export default function GuildView() {
         </Card>
       </div>
 
-      {/* Drill-outs */}
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" className="gap-1.5" asChild>
-          <Link to={`/browse?guild=${id}`}>
-            <MessagesSquare className="size-4" />
-            Browse all messages
-          </Link>
-        </Button>
-        <Button variant="outline" size="sm" className="gap-1.5" asChild>
-          <Link to={`/search?query=${encodeURIComponent(`server:${id}`)}`}>
-            <Search className="size-4" />
-            Search in guild
-          </Link>
-        </Button>
-        <Button variant="outline" size="sm" className="gap-1.5" asChild>
-          <Link to={`/activity?guild=${id}`}>
-            <Server className="size-4" />
-            Activity for this guild
-          </Link>
-        </Button>
-      </div>
     </div>
   );
 }
