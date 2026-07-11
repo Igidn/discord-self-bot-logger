@@ -45,6 +45,7 @@ interface GuildInfo {
   name: string;
   icon?: string | null;
   ownerId?: string | null;
+  ownerUsername?: string | null;
   joinedAt?: number | null;
   memberCount: number;
   messageCount: number;
@@ -224,7 +225,9 @@ export default function GuildView() {
                   {guild?.ownerId && (
                     <span className="inline-flex items-center gap-1.5">
                       Owner
-                      <span className="font-mono text-xs">{guild.ownerId}</span>
+                      <Link to={`/users/${guild.ownerId}`} className="font-medium hover:underline">
+                        {guild.ownerUsername ? `@${guild.ownerUsername}` : <span className="font-mono text-xs">{guild.ownerId}</span>}
+                      </Link>
                     </span>
                   )}
                   {guild?.joinedAt != null && (
