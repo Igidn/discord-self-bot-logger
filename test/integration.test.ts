@@ -436,6 +436,21 @@ logging:
       assert.strictEqual(body.totalMessages, 0);
       assert.strictEqual(body.totalReactions, 0);
     });
+
+    it('should scope daily counts and firstLoggedAt to a guild', async () => {
+      // guild-1 has 31 messages; one (msg-old) is decades outside a 30d window.
+      const body = await (await apiFetch('/stats/guild/guild-1?days=30')).json();
+      assert.ok(Array.isArray(body.dailyCounts));
+      const sumRecent = body.dailyCounts.reduce((s: number, d: any) => s + d.count, 0);
+      assert.strictEqual(sumRecent, 30);
+      // firstLoggedAt is the all-time MIN(created_at) — includes msg-old.
+      assert.ok(typeof body.firstLoggedAt === 'number');
+
+      // Unknown guild → empty series, null firstLoggedAt.
+      const none = await (await apiFetch('/stats/guild/guild-999?days=30')).json();
+      assert.strictEqual(none.dailyCounts.length, 0);
+      assert.strictEqual(none.firstLoggedAt, null);
+    });
   });
 
   /* ---------------------------------------------------------------- */

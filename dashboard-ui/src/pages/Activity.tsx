@@ -78,6 +78,7 @@ interface AuditEvent {
 export default function Activity() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = (searchParams.get("tab") as ActivityTab) || "members";
+  const guildFilter = searchParams.get("guild") ?? "";
   const [members, setMembers] = useState<MemberEvent[]>([]);
   const [voice, setVoice] = useState<VoiceEvent[]>([]);
   const [presence, setPresence] = useState<PresenceEvent[]>([]);
@@ -87,18 +88,22 @@ export default function Activity() {
   useEffect(() => {
     async function fetchAll() {
       try {
+        // guildedParam scopes all four streams to one guild when a `guild`
+        // query param is present (drill-out from GuildView).
+        const guilded = (path: string) =>
+          `${path}${guildFilter ? `&guild=${guildFilter}` : ""}`;
         const [mRes, vRes, pRes, aRes] = await Promise.all([
           apiClient
-            .get<MemberEvent[]>("/activity/member-events?limit=50")
+            .get<MemberEvent[]>(guilded("/activity/member-events?limit=50"))
             .catch(() => ({ data: [] })),
           apiClient
-            .get<VoiceEvent[]>("/activity/voice?limit=50")
+            .get<VoiceEvent[]>(guilded("/activity/voice?limit=50"))
             .catch(() => ({ data: [] })),
           apiClient
-            .get<PresenceEvent[]>("/activity/presence?limit=50")
+            .get<PresenceEvent[]>(guilded("/activity/presence?limit=50"))
             .catch(() => ({ data: [] })),
           apiClient
-            .get<AuditEvent[]>("/activity/audit?limit=50")
+            .get<AuditEvent[]>(guilded("/activity/audit?limit=50"))
             .catch(() => ({ data: [] })),
         ]);
         setMembers(mRes.data);
@@ -112,7 +117,7 @@ export default function Activity() {
       }
     }
     fetchAll();
-  }, []);
+  }, [guildFilter]);
 
   return (
     <div className="flex flex-1 flex-col gap-6 overflow-y-auto p-6">
@@ -124,6 +129,12 @@ export default function Activity() {
           Track member joins, voice events, presence updates, and audit actions
           across guilds.
         </p>
+        {guildFilter && (
+          <Badge variant="secondary" className="w-fit gap-1.5 text-xs">
+            Filtered to guild {guildFilter}
+            <Link to="?" className="underline hover:text-foreground">clear</Link>
+          </Badge>
+        )}
       </div>
 
       <Tabs value={tab} onValueChange={(v) => setSearchParams({ tab: v })}>
