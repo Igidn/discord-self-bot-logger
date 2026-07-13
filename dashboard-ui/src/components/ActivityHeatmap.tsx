@@ -135,7 +135,10 @@ function levelFor(count: number, levels: number[]): number {
   return 4;
 }
 
-export function ActivityHeatmap({ userId }: { userId: string }) {
+// Reused for per-user (UserProfile) and per-channel (ChannelView) rhythms.
+// Exactly one of userId / channelId is provided; the endpoint is chosen from
+// whichever is set so the component stays data-source agnostic.
+export function ActivityHeatmap({ userId, channelId }: { userId?: string; channelId?: string }) {
   const [days, setDays] = useState(365);
   const [data, setData] = useState<HeatmapDay[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -148,8 +151,11 @@ export function ActivityHeatmap({ userId }: { userId: string }) {
     // returns minutes *behind* UTC (positive for west), so negate it. Sent to
     // the server so it groups messages into the same local-day buckets we render.
     const tz = -new Date().getTimezoneOffset();
+    const endpoint = channelId
+      ? `/stats/channel/${channelId}/heatmap`
+      : `/users/${userId}/activity/heatmap`;
     apiClient
-      .get<HeatmapResponse>(`/users/${userId}/activity/heatmap`, {
+      .get<HeatmapResponse>(endpoint, {
         params: { days: String(days), tz: String(tz) },
       })
       .then((res) => {
@@ -165,7 +171,7 @@ export function ActivityHeatmap({ userId }: { userId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [userId, days]);
+  }, [userId, channelId, days]);
 
   const grid = useMemo(() => {
     if (!data) return [];

@@ -14,6 +14,7 @@ import Stats from './pages/Stats';
 import Settings from './pages/Settings';
 import Guilds from './pages/Guilds';
 import GuildView from './pages/GuildView';
+import ChannelView from './pages/ChannelView';
 
 class AppErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   state = { hasError: false };
@@ -69,6 +70,7 @@ export default function App() {
               <Route path="/stats" element={<Stats />} />
               <Route path="/guilds" element={<Guilds />} />
               <Route path="/guilds/:id" element={<GuildView />} />
+              <Route path="/guilds/:id/channels/:channelId" element={<ChannelView />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
