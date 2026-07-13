@@ -451,6 +451,49 @@ logging:
       assert.strictEqual(none.dailyCounts.length, 0);
       assert.strictEqual(none.firstLoggedAt, null);
     });
+
+    it('should return channel-scoped stats with identity', async () => {
+      const body = await (await apiFetch('/stats/channel/channel-1')).json();
+      assert.strictEqual(body.totalMessages, 31);
+      assert.strictEqual(body.deletedMessages, 1);
+      assert.strictEqual(body.totalEdits, 2);
+      assert.strictEqual(body.totalAttachments, 3);
+      assert.strictEqual(body.totalReactions, 1);
+      assert.strictEqual(body.distinctUsers, 2);
+      assert.ok(typeof body.firstLoggedAt === 'number');
+      assert.ok(typeof body.lastLoggedAt === 'number');
+      // Channel identity bar.
+      assert.strictEqual(body.channel?.name, 'general');
+      assert.strictEqual(body.channel?.type, 0);
+      assert.strictEqual(body.channel?.topic, 'General chat');
+      assert.strictEqual(body.channel?.guildName, 'Test Guild');
+      // Top talkers dominate this channel — user-1 (17) ahead of user-2 (14).
+      assert.strictEqual(body.topUsers[0].userId, 'user-1');
+      assert.strictEqual(body.topUsers[1].userId, 'user-2');
+      // The single seeded 👍 reaction is the top (and only) reaction.
+      assert.strictEqual(body.topReactions.length, 1);
+      assert.strictEqual(body.topReactions[0].emoji, '👍');
+      // Daily counts scoped to channel, not guild.
+      const sumRecent = body.dailyCounts.reduce((s: number, d: any) => s + d.count, 0);
+      assert.strictEqual(sumRecent, 30); // 31 minus msg-old, out of the 30d window
+    });
+
+    it('should return zeros for an unknown channel', async () => {
+      const body = await (await apiFetch('/stats/channel/channel-999')).json();
+      assert.strictEqual(body.totalMessages, 0);
+      assert.strictEqual(body.channel, null);
+      assert.strictEqual(body.firstLoggedAt, null);
+      assert.strictEqual(body.lastLoggedAt, null);
+      assert.strictEqual(body.distinctUsers, 0);
+    });
+
+    it('should return a per-channel activity heatmap', async () => {
+      const body = await (await apiFetch('/stats/channel/channel-1/heatmap?days=30&tz=0')).json();
+      assert.strictEqual(body.days, 30);
+      assert.ok(Array.isArray(body.data));
+      const total = body.data.reduce((s: number, d: any) => s + d.count, 0);
+      assert.strictEqual(total, 30); // msg-old is outside the 30d window
+    });
   });
 
   /* ---------------------------------------------------------------- */

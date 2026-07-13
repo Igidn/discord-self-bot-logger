@@ -1,7 +1,7 @@
 import { eq, sql } from 'drizzle-orm';
 import { db } from '../index.js';
 import * as schema from '../schema.js';
-import type { GuildStats } from './types.js';
+import type { GuildStats, ChannelStats } from './types.js';
 
 /* ------------------------------------------------------------------ */
 /*  getGuildStats                                                      */
@@ -78,10 +78,21 @@ export function getGuildStats(guildId: string): GuildStats {
 export function getDailyMessageCounts(
   days: number = 30,
   guildId?: string,
+  channelId?: string,
 ): { day: string; count: number }[] {
   const sinceSec = Math.floor((Date.now() - days * 24 * 60 * 60 * 1000) / 1000);
-  // ponytail: optional guild filter — same query, one extra predicate. The
-  // global overview path (guildId undefined) keeps the original WHERE.
+  // ponytail: optional guild/channel filter — same query, one extra predicate
+  // each. Channel is the most specific, so it wins when both are passed
+  // (ChannelView always scopes by channel, never by guild too).
+  if (channelId) {
+    return db.all<{ day: string; count: number }>(sql`
+      SELECT date(created_at, 'unixepoch', 'localtime') AS day, count(*) AS count
+      FROM messages
+      WHERE created_at >= ${sinceSec} AND channel_id = ${channelId}
+      GROUP BY day
+      ORDER BY day DESC
+    `);
+  }
   if (guildId) {
     return db.all<{ day: string; count: number }>(sql`
       SELECT date(created_at, 'unixepoch', 'localtime') AS day, count(*) AS count
@@ -158,6 +169,105 @@ export function getUserActivityHeatmap(
       count(*) AS count
     FROM messages
     WHERE author_id = ${userId} AND created_at >= ${sinceSec}
+    GROUP BY day
+    ORDER BY day ASC
+  `);
+}
+
+/* ------------------------------------------------------------------ */
+/*  getChannelStats                                                     */
+/* ------------------------------------------------------------------ */
+
+export function getChannelStats(channelId: string): ChannelStats {
+  const channel = db.get<{
+    id: string; name: string | null; topic: string | null; type: number | null;
+    nsfw: number | null; parentId: string | null; parentName: string | null;
+    guildId: string | null; guildName: string | null;
+  }>(sql`
+    SELECT c.id, c.name, c.topic, c.type, c.nsfw, c.parent_id AS parentId,
+           p.name AS parentName, c.guild_id AS guildId, g.name AS guildName
+    FROM channels c
+    LEFT JOIN channels p ON p.id = c.parent_id
+    LEFT JOIN guilds g ON g.id = c.guild_id
+    WHERE c.id = ${channelId}
+  `) ?? null;
+
+  const totalMessages =
+    db.get<{ count: number }>(sql`SELECT count(*) AS count FROM messages WHERE channel_id = ${channelId}`)?.count ?? 0;
+
+  const deletedMessages =
+    db.get<{ count: number }>(sql`SELECT count(*) AS count FROM messages WHERE channel_id = ${channelId} AND deleted_at IS NOT NULL`)?.count ?? 0;
+
+  const totalEdits =
+    db.get<{ count: number }>(sql`SELECT count(*) AS count FROM message_edits me JOIN messages m ON m.id = me.message_id WHERE m.channel_id = ${channelId}`)?.count ?? 0;
+
+  const totalAttachments =
+    db.get<{ count: number }>(sql`SELECT count(*) AS count FROM attachments a JOIN messages m ON m.id = a.message_id WHERE m.channel_id = ${channelId}`)?.count ?? 0;
+
+  const totalReactions =
+    db.get<{ count: number }>(sql`SELECT count(*) AS count FROM reactions WHERE channel_id = ${channelId}`)?.count ?? 0;
+
+  const span = db.get<{ first: number | null; last: number | null; distinctUsers: number }>(sql`
+    SELECT min(created_at) AS first, max(created_at) AS last, count(DISTINCT author_id) AS distinctUsers
+    FROM messages WHERE channel_id = ${channelId}
+  `);
+
+  const topUsers = db.all<{ userId: string; username: string | null; avatarUrl: string | null; count: number }>(sql`
+    SELECT m.author_id AS userId, u.username AS username, u.avatar_url AS avatarUrl, count(*) AS count
+    FROM messages m
+    LEFT JOIN users u ON u.id = m.author_id
+    WHERE m.channel_id = ${channelId}
+    GROUP BY m.author_id
+    ORDER BY count DESC
+    LIMIT 10
+  `);
+
+  // ponytail: custom emoji render as :name: only when we keep the name; the
+  // raw emoji_id is useless to a browser without a CDN lookup, so COALESCE
+  // prefers emoji_name and falls back to emoji_id only as a last resort.
+  const topReactions = db.all<{ emoji: string | null; emojiId: string | null; count: number }>(sql`
+    SELECT COALESCE(emoji_name, emoji_id) AS emoji, emoji_id AS emojiId, count(*) AS count
+    FROM reactions
+    WHERE channel_id = ${channelId} AND added = 1
+    GROUP BY emoji
+    ORDER BY count DESC
+    LIMIT 5
+  `);
+
+  return {
+    channel,
+    totalMessages,
+    deletedMessages,
+    totalEdits,
+    totalAttachments,
+    totalReactions,
+    firstLoggedAt: span?.first ?? null,
+    lastLoggedAt: span?.last ?? null,
+    distinctUsers: span?.distinctUsers ?? 0,
+    topUsers,
+    topReactions,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/*  getChannelActivityHeatmap                                          */
+/* ------------------------------------------------------------------ */
+
+export function getChannelActivityHeatmap(
+  channelId: string,
+  days: number = 365,
+  tzOffsetMinutes: number = 0,
+): ActivityHeatmapDay[] {
+  const safeDays = Math.max(1, Math.min(730, days));
+  const sinceSec = Math.floor((Date.now() - safeDays * 24 * 60 * 60 * 1000) / 1000);
+  const safeTz = Math.max(-720, Math.min(720, Math.trunc(tzOffsetMinutes) || 0));
+  const tzModifier = `${safeTz >= 0 ? '+' : '-'}${Math.abs(safeTz)} minutes`;
+  return db.all<{ day: string; count: number }>(sql`
+    SELECT
+      date(created_at, 'unixepoch', ${tzModifier}) AS day,
+      count(*) AS count
+    FROM messages
+    WHERE channel_id = ${channelId} AND created_at >= ${sinceSec}
     GROUP BY day
     ORDER BY day ASC
   `);

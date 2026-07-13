@@ -54,3 +54,27 @@ export interface GuildStats {
   topChannels: { channelId: string; channelName: string | null; guildIconUrl: string | null; count: number }[];
   topUsers: { userId: string; username: string | null; avatarUrl: string | null; count: number }[];
 }
+
+export interface ChannelStats {
+  channel: {
+    id: string;
+    name: string | null;
+    topic: string | null;
+    type: number | null;
+    nsfw: number | null;
+    parentId: string | null;
+    parentName: string | null;
+    guildId: string | null;
+    guildName: string | null;
+  } | null;
+  totalMessages: number;
+  deletedMessages: number;
+  totalEdits: number;
+  totalAttachments: number;
+  totalReactions: number;
+  firstLoggedAt: number | null;
+  lastLoggedAt: number | null;
+  distinctUsers: number;
+  topUsers: { userId: string; username: string | null; avatarUrl: string | null; count: number }[];
+  topReactions: { emoji: string | null; emojiId: string | null; count: number }[];
+}
