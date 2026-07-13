@@ -302,18 +302,18 @@ export default function ChannelView() {
         ))}
       </div>
 
-      {/* Top participants + top reactions */}
+      {/* Top chatters + top reactions */}
       <div className="grid gap-4 xl:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base font-semibold">
               <User className="size-4 text-muted-foreground" />
-              Top Participants
+              Top Chatters
             </CardTitle>
             <CardDescription>
               {stats?.distinctUsers != null
-                ? `${stats.distinctUsers.toLocaleString()} distinct talkers in this channel`
-                : 'Most active members in this channel'}
+                ? `${stats.distinctUsers.toLocaleString()} people chat here`
+                : 'Who talks the most here'}
             </CardDescription>
           </CardHeader>
           <CardContent>
