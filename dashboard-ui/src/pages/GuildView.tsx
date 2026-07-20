@@ -316,7 +316,7 @@ export default function GuildView() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base font-semibold">
               <User className="size-4 text-muted-foreground" />
-              Top Talkers
+              Top Chatters
             </CardTitle>
             <CardDescription>Most active members in this guild</CardDescription>
           </CardHeader>
