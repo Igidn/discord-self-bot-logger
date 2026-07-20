@@ -202,7 +202,7 @@ export function UserTimelines({ userId }: { userId: string }) {
       </TimelineSection>
 
       {/* Member events */}
-      <TimelineSection icon={UserCog} title="Member Events" accent="#5865f2">
+      <TimelineSection icon={UserCog} title="Member Events" accent="#5865f2" scrollable>
         {member.length === 0 ? (
           <Empty text="No member events" />
         ) : (
@@ -229,6 +229,7 @@ export function UserTimelines({ userId }: { userId: string }) {
         icon={Mic}
         title="Voice Activity"
         accent="#eb459e"
+        scrollable
         extra={
           voiceTotal > 0 ? (
             <span className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -269,12 +270,14 @@ function TimelineSection({
   title,
   accent,
   extra,
+  scrollable,
   children,
 }: {
   icon: React.ElementType;
   title: string;
   accent: string;
   extra?: React.ReactNode;
+  scrollable?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -286,7 +289,11 @@ function TimelineSection({
         </div>
         {extra}
       </div>
-      {children}
+      {scrollable ? (
+        <div className="max-h-72 overflow-y-auto pr-1">{children}</div>
+      ) : (
+        children
+      )}
     </div>
   );
 }
